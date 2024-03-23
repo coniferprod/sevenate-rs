@@ -12,13 +12,13 @@ The Yamaha DX7 patch data model is full of values that could be
 expressed as subrange types. For example, the algorithm used in a
 patch has the values 1 to 32. The detune is from -7 to 7, etc.
 
-I have tried various ways of implementing and using subrange types 
+I have tried various ways of implementing and using subrange types
 in Rust. Most attempts have resulted in a lot of boilerplate code.
 
 ### Using const generics
 
-When const generics where finally stabilized in Rust,
-I tried to implement a trait that has const parameters for the start
+When [const generics](https://doc.rust-lang.org/reference/items/generics.html#const-generics) were stabilized in Rust,
+I tried to implement a trait that has `const` parameters for the start
 and end of the range. That ended up looking really ugly and was
 cumbersome to use:
 
@@ -94,17 +94,17 @@ There would also be other traits to implement, like `Default` and
     let volume = Volume::new(100);
 
 When I wanted to use the value that was wrapped inside the type,
-I would have to use `volume.value()`. Setting this all up 
-is not that far from using a newtype, but needs a lot of boilerplate. 
-The next obvious step would be to make a macro that generates all the 
+I would have to use `volume.value()`. Setting this all up
+is not that far from using a newtype, but needs a lot of boilerplate.
+The next obvious step would be to make a macro that generates all the
 necessary boilerplate, but I didn't want to go that way, at least not yet.
 
 ### Using the nutype library
 
 Another way is to use a library like [nutype](https://github.com/greyblake/nutype). It is a very useful crate,
-but you need to use a crate-specific attributes, and starting
-with [nutype 0.4](https://users.rust-lang.org/t/nutype-0-4-0-released/102889) you will need to specify your regular attributes 
-inside the nutype attribute, like this:
+but you need to use a crate-specific attribute, and starting
+with [nutype 0.4](https://users.rust-lang.org/t/nutype-0-4-0-released/102889) you will need to specify your regular attributes
+inside the `nutype` attribute, like this:
 
     /// MIDI channel
     #[nutype(
@@ -113,8 +113,8 @@ inside the nutype attribute, like this:
     )]
     pub struct MIDIChannel(u8);
 
-So, nutype uses the Rust [newtype pattern](https://effective-rust.com/newtype.html) and augments it with 
-information about the validation rules that should be applied 
+So, `nutype` uses the Rust [newtype pattern](https://effective-rust.com/newtype.html) and augments it with
+information about the validation rules that should be applied
 to values of that type.
 
 ### Embrace the lack of subrange types
