@@ -1,14 +1,10 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod dx7;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+/// Parsing and generating MIDI System Exclusive data.
+pub trait SystemExclusiveData {
+    fn from_bytes(data: Vec<u8>) -> Self;
+    fn from_packed_bytes(data: Vec<u8>) -> Self;
+    fn to_bytes(&self) -> Vec<u8>;
+    fn to_packed_bytes(&self) -> Vec<u8> { vec![] }
+    fn data_size(&self) -> usize { 0 }
 }
