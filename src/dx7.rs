@@ -122,24 +122,27 @@ impl Rate {
     }
 }
 
+pub type Rates = (Rate, Rate, Rate, Rate);
+pub type Levels = (Level, Level, Level, Level);
+
 /// Envelope generator.
 #[derive(Debug, Clone, Copy)]
 pub struct Envelope {
-    pub rates: [Rate; 4],
-    pub levels: [Level; 4],
+    pub rates: Rates,
+    pub levels: Levels,
 }
 
 impl Envelope {
     /// Creates a new EG with the DX7 voice defaults.
     pub fn new() -> Self {
         Envelope {
-            rates: [Rate(99), Rate(99), Rate(99), Rate(99)],
-            levels: [Level(99), Level(99), Level(99), Level(0)]
+            rates: (Rate(99), Rate(99), Rate(99), Rate(99)),
+            levels: (Level(99), Level(99), Level(99), Level(0))
         }
     }
 
     /// Makes a new EG with rates and levels.
-    pub fn new_rate_level(rates: [Rate; 4], levels: [Level; 4]) -> Self {
+    pub fn new_rate_level(rates: Rates, levels: Levels) -> Self {
         Self { rates, levels }
     }
 
@@ -154,16 +157,16 @@ impl Envelope {
     /// Makes a new ADSR-style envelope.
     pub fn adsr(attack: Rate, decay: Rate, sustain: Level, release: Rate) -> Self {
         Envelope::new_rate_level(
-            [attack, Rate(99), decay, release],
-            [Level(99), Level(99), sustain, Level(0)]
+            (attack, Rate(99), decay, release),
+            (Level(99), Level(99), sustain, Level(0))
         )
     }
 
     /// Makes a new EG with random rates and levels.
     pub fn new_random() -> Self {
         Self {
-            rates: [Rate::random_value(), Rate::random_value(), Rate::random_value(), Rate::random_value()],
-            levels: [Level::random_value(), Level::random_value(), Level::random_value(), Level::random_value()],
+            rates: (Rate::random_value(), Rate::random_value(), Rate::random_value(), Rate::random_value()),
+            levels: (Level::random_value(), Level::random_value(), Level::random_value(), Level::random_value()),
         }
     }
 }
@@ -171,10 +174,10 @@ impl Envelope {
 impl fmt::Display for Envelope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "R1={} L1={} R2={} L2={} R3={} L3={} R4={} L4={}",
-            self.rates[0].0, self.levels[0].0,
-            self.rates[1].0, self.levels[1].0,
-            self.rates[2].0, self.levels[2].0,
-            self.rates[3].0, self.levels[3].0)
+            self.rates.0.0, self.levels.0.0,
+            self.rates.1.0, self.levels.1.0,
+            self.rates.2.0, self.levels.2.0,
+            self.rates.3.0, self.levels.3.0)
     }
 }
 
@@ -182,8 +185,8 @@ impl SystemExclusiveData for Envelope {
     /// Makes an envelope generator from relevant SysEx message bytes.
     fn from_bytes(data: Vec<u8>) -> Self {
         Envelope {
-            rates: [Rate(data[0]), Rate(data[1]), Rate(data[2]), Rate(data[3])],
-            levels: [Level(data[4]), Level(data[5]), Level(data[6]), Level(data[7])]
+            rates: (Rate(data[0]), Rate(data[1]), Rate(data[2]), Rate(data[3])),
+            levels: (Level(data[4]), Level(data[5]), Level(data[6]), Level(data[7]))
         }
     }
 
@@ -199,8 +202,14 @@ impl SystemExclusiveData for Envelope {
     /// Gets the SysEx bytes of this EG.
     fn to_bytes(&self) -> Vec<u8> {
         vec![
-            self.rates[0].as_byte(), self.rates[1].as_byte(), self.rates[2].as_byte(), self.rates[3].as_byte(),
-            self.levels[0].as_byte(), self.levels[1].as_byte(), self.levels[2].as_byte(), self.levels[3].as_byte()
+            self.rates.0.as_byte(),
+            self.rates.1.as_byte(),
+            self.rates.2.as_byte(),
+            self.rates.3.as_byte(),
+            self.levels.0.as_byte(),
+            self.levels.1.as_byte(),
+            self.levels.2.as_byte(),
+            self.levels.3.as_byte()
         ]
     }
 }
@@ -684,7 +693,7 @@ impl Voice {
                 Operator { output_level: Level(0), ..Operator::new() },
             ],
             peg: Envelope {
-                levels: [Level(50), Level(50), Level(50), Level(50)],
+                levels: (Level(50), Level(50), Level(50), Level(50)),
                 ..Envelope::new()
             },
             alg: Algorithm(1),
@@ -951,8 +960,8 @@ fn make_brass1() -> Voice {
 
     let op6 = Operator {
         eg: Envelope::new_rate_level(
-            [Rate(49), Rate(99), Rate(28), Rate(68)],
-            [Level(98), Level(98), Level(91), Level(0)]),
+            (Rate(49), Rate(99), Rate(28), Rate(68)),
+            (Level(98), Level(98), Level(91), Level(0))),
         kbd_level_scaling: KeyboardLevelScaling {
             left_depth: 54,
             right_depth: 50,
@@ -967,8 +976,8 @@ fn make_brass1() -> Voice {
 
     let op5 = Operator {
         eg: Envelope::new_rate_level(
-            [Rate(77), Rate(36), Rate(41), Rate(71)],
-            [Level(99), Level(98), Level(98), Level(0)]),
+            (Rate(77), Rate(36), Rate(41), Rate(71)),
+            (Level(99), Level(98), Level(98), Level(0))),
         kbd_level_scaling,
         output_level: Level(98),
         detune: Detune(1),
@@ -984,8 +993,8 @@ fn make_brass1() -> Voice {
 
     let op3 = Operator {
         eg: Envelope::new_rate_level(
-            [Rate(77), Rate(76), Rate(82), Rate(71)],
-            [Level(99), Level(98), Level(98), Level(0)]),
+            (Rate(77), Rate(76), Rate(82), Rate(71)),
+            (Level(99), Level(98), Level(98), Level(0))),
         kbd_level_scaling,
         output_level: Level(99),
         detune: Detune(-2),
@@ -994,8 +1003,8 @@ fn make_brass1() -> Voice {
 
     let op2 = Operator {
         eg: Envelope::new_rate_level(
-            [Rate(62), Rate(51), Rate(29), Rate(71)],
-            [Level(82), Level(95), Level(96), Level(0)]),
+            (Rate(62), Rate(51), Rate(29), Rate(71)),
+            (Level(82), Level(95), Level(96), Level(0))),
         kbd_level_scaling: KeyboardLevelScaling {
             breakpoint: 48 - 21,
             left_depth: 0,
@@ -1012,8 +1021,8 @@ fn make_brass1() -> Voice {
 
     let op1 = Operator {
         eg: Envelope::new_rate_level(
-            [Rate(72), Rate(76), Rate(99), Rate(71)],
-            [Level(99), Level(88), Level(96), Level(0)]),
+            (Rate(72), Rate(76), Rate(99), Rate(71)),
+            (Level(99), Level(88), Level(96), Level(0))),
         kbd_level_scaling: KeyboardLevelScaling {
             right_depth: 14,
             ..kbd_level_scaling
@@ -1028,8 +1037,8 @@ fn make_brass1() -> Voice {
     Voice {
         operators: [op1, op2, op3, op4, op5, op6],
         peg: Envelope::new_rate_level(
-            [Rate(84), Rate(95), Rate(95), Rate(60)],
-            [Level(50), Level(50), Level(50), Level(50)]),
+            (Rate(84), Rate(95), Rate(95), Rate(60)),
+            (Level(50), Level(50), Level(50), Level(50))),
         alg: Algorithm(22),
         feedback: Depth(7),
         osc_sync: true,
@@ -1083,8 +1092,8 @@ pub fn make_init_voice() -> Voice {
             init_op_rest.clone(),
         ],
         peg: Envelope::new_rate_level(
-            [Rate(99), Rate(99), Rate(99), Rate(99)],
-            [Level(50), Level(50), Level(50), Level(50)]),
+            (Rate(99), Rate(99), Rate(99), Rate(99)),
+            (Level(50), Level(50), Level(50), Level(50))),
         alg: Algorithm(1),
         feedback: Depth(0),
         osc_sync: true, // osc key sync = on
@@ -1132,8 +1141,8 @@ mod tests {
     #[test]
     fn test_eg_to_bytes() {
         let eg = Envelope {
-            rates: [Rate(64), Rate(64), Rate(64), Rate(64)],
-            levels: [Level(32), Level(32), Level(32), Level(32)]
+            rates: (Rate(64), Rate(64), Rate(64), Rate(64)),
+            levels: (Level(32), Level(32), Level(32), Level(32))
         };
         assert_eq!(eg.to_bytes(), vec![64u8, 64, 64, 64, 32, 32, 32, 32]);
     }
@@ -1179,8 +1188,8 @@ mod tests {
     fn test_op_to_packed_bytes() {
         let op = Operator {
             eg: Envelope {
-                rates: [Rate(49), Rate(99), Rate(28), Rate(68)],
-                levels: [Level(98), Level(98), Level(91), Level(0)]
+                rates: (Rate(49), Rate(99), Rate(28), Rate(68)),
+                levels: (Level(98), Level(98), Level(91), Level(0))
             },
             kbd_level_scaling: KeyboardLevelScaling {
                 breakpoint: 39,
