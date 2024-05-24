@@ -240,6 +240,10 @@ impl SystemExclusiveData for Envelope {
             self.levels.3.as_byte()
         ]
     }
+
+    fn data_size(&self) -> usize {
+        8
+    }
 }
 
 /// Scaling curve style.
@@ -387,6 +391,10 @@ impl SystemExclusiveData for KeyboardLevelScaling {
             self.left_curve.to_bytes() | (self.right_curve.to_bytes() << 2),
         ]
     }
+
+    fn data_size(&self) -> usize {
+        5
+    }
 }
 
 /// Operator mode.
@@ -531,6 +539,10 @@ impl SystemExclusiveData for Operator {
 
         data
     }
+
+    fn data_size(&self) -> usize {
+        21
+    }
 }
 
 impl fmt::Display for Operator {
@@ -646,6 +658,10 @@ impl SystemExclusiveData for Lfo {
             if self.sync { 1 } else { 0 },
             self.wave as u8,
         ]
+    }
+
+    fn data_size(&self) -> usize {
+        6
     }
 }
 
@@ -816,6 +832,11 @@ impl SystemExclusiveData for Voice {
 
         data
     }
+
+    fn data_size(&self) -> usize {
+        154
+    }
+
 }
 
 impl fmt::Display for Voice {
