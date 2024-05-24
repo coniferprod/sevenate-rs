@@ -1,4 +1,5 @@
 use std::fmt;
+use std::convert::From;
 use log::{warn, debug};
 use rand::Rng;
 use bit::BitIndex;
@@ -29,8 +30,33 @@ pub static ALGORITHM_DIAGRAMS: [&str; 32] = include!("algorithms.in");
 pub struct Algorithm(u8);
 
 impl Algorithm {
+    /// Checks if the `u8` is a valid algorithm data value.
+    pub fn is_valid(value: u8) -> bool {
+        (0..=31).contains(&value)
+    }
+
     pub fn as_byte(&self) -> u8 {
         (self.0 - 1) as u8  // adjust to 0...31 for SysEx
+    }
+}
+
+impl From<u8> for Algorithm {
+    fn from(item: u8) -> Self {
+        Algorithm(item + 1)  // bring into 1...32
+    }
+}
+
+impl fmt::Display for Algorithm {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "#{}:\n{}",
+            self.0,
+            ALGORITHM_DIAGRAMS[(self.0 as usize) - 1])
+    }
+}
+
+impl Default for Algorithm {
+    fn default() -> Algorithm {
+        Algorithm(1)
     }
 }
 
@@ -41,6 +67,12 @@ pub struct Detune(i8);
 impl Detune {
     pub fn as_byte(&self) -> u8 {
         (self.0 + 7) as u8  // adjust for SysEx
+    }
+}
+
+impl From<u8> for Detune {
+    fn from(item: u8) -> Self {
+        Detune((item + 7) as i8)
     }
 }
 
@@ -87,10 +119,6 @@ impl Transpose {
         (self.0 + 2) as u8 * 12
     }
 }
-
-//
-// Conveniences for initializing envelope generators.
-//
 
 /// Envelope level (or operator output level) (0...99)
 #[derive(Debug, Clone, Copy)]
@@ -431,7 +459,7 @@ impl SystemExclusiveData for Operator {
             mode: if data[17] == 0b1 { OperatorMode::Fixed } else { OperatorMode::Ratio },
             coarse: Coarse(data[18]),
             fine: Level(data[19]),
-            detune: Detune(data[20].try_into().unwrap()),
+            detune: Detune::from(data[20]),
         }
     }
 
@@ -447,7 +475,7 @@ impl SystemExclusiveData for Operator {
             mode: if data[15].bit(0) { OperatorMode::Fixed } else { OperatorMode::Ratio },
             coarse: Coarse(data[15].bit_range(1..6)),
             fine: Level(data[16]),
-            detune: Detune(data[12].bit_range(3..7).try_into().unwrap()),
+            detune: Detune::from(data[12].bit_range(3..7)),
         }
     }
 
@@ -463,7 +491,7 @@ impl SystemExclusiveData for Operator {
         data.push(self.mode as u8);
         data.push(self.coarse.as_byte());
         data.push(self.fine.as_byte());
-        data.push(self.detune.as_byte()); // 0 = detune -7
+        data.push(self.detune.as_byte()); // 0 = detune -7, 7 = 0, 14 = +7
         assert_eq!(data.len(), 21);
         data
     }
@@ -546,7 +574,6 @@ pub struct Lfo {
     pub amd: Level,    // 0 ~ 99
     pub sync: bool,
     pub wave: LfoWaveform,
-    pub pitch_mod_sens: Depth,  // 0 ~ 7
 }
 
 impl Lfo {
@@ -559,7 +586,6 @@ impl Lfo {
             amd: Level(0),
             sync: true,
             wave: LfoWaveform::Triangle,
-            pitch_mod_sens: Depth(0),
         }
     }
 
@@ -572,21 +598,19 @@ impl Lfo {
             amd: Level::random_value(),
             sync: true,
             wave: LfoWaveform::Triangle,
-            pitch_mod_sens: Depth::random_value(),
         }
     }
 }
 
 impl fmt::Display for Lfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "speed = {}, delay = {}, PMD = {}, AMD = {}, sync = {}, wave = {:?}, pitch mod sens = {}",
+        write!(f, "speed = {}, delay = {}, PMD = {}, AMD = {}, sync = {}, wave = {:?}",
             self.speed.0,
             self.delay.0,
             self.pmd.0,
             self.amd.0,
             self.sync,
-            self.wave,
-            self.pitch_mod_sens.0)
+            self.wave)
     }
 }
 
@@ -610,30 +634,6 @@ impl SystemExclusiveData for Lfo {
                     LfoWaveform::Triangle
                 }
             },
-            pitch_mod_sens: Depth(data[6]),
-        }
-    }
-
-    fn from_packed_bytes(data: Vec<u8>) -> Self {
-        Lfo {
-            speed: Level(data[0]),
-            delay: Level(data[1]),
-            pmd: Level(data[2]),
-            amd: Level(data[3]),
-            sync: if data[4].bit(0) { true } else { false },
-            wave: match data[4].bit_range(1..4) {
-                0 => LfoWaveform::Triangle,
-                1 => LfoWaveform::SawDown,
-                2 => LfoWaveform::SawUp,
-                3 => LfoWaveform::Square,
-                4 => LfoWaveform::Sine,
-                5 => LfoWaveform::SampleAndHold,
-                _ => {
-                    warn!("LFO waveform out of range: {}, setting to TRI", data[4]);
-                    LfoWaveform::Triangle
-                }
-            },
-            pitch_mod_sens: Depth(data[4].bit_range(4..7)),
         }
     }
 
@@ -645,21 +645,6 @@ impl SystemExclusiveData for Lfo {
             self.amd.as_byte(),
             if self.sync { 1 } else { 0 },
             self.wave as u8,
-            self.pitch_mod_sens.as_byte(),
-        ]
-    }
-
-    fn to_packed_bytes(&self) -> Vec<u8> {
-        let mut b116: u8 = if self.sync { 1 } else { 0 };
-        b116.set_bit_range(1..4, self.wave as u8);
-        b116.set_bit_range(4..7, self.pitch_mod_sens.as_byte());
-
-        vec![
-            self.speed.as_byte(),
-            self.delay.as_byte(),
-            self.pmd.as_byte(),
-            self.amd.as_byte(),
-            b116,
         ]
     }
 }
@@ -675,6 +660,7 @@ pub struct Voice {
     pub feedback: Depth,
     pub osc_sync: bool,
     pub lfo: Lfo,
+    pub pitch_mod_sens: Depth,  // 0 ~ 7
     pub transpose: Transpose,  // number of octaves to transpose (-2...+2) (12 = C2 (value is 0~48 in SysEx))
     pub name: String,
     pub op_flags: [bool; 6],
@@ -700,6 +686,7 @@ impl Voice {
             feedback: Depth(0),
             osc_sync: true,
             lfo: Lfo::new(),
+            pitch_mod_sens: Depth(0),
             transpose: Transpose(0),
             name: "INIT VOICE".to_string(),
             op_flags: [true, true, true, true, true, true],
@@ -725,10 +712,11 @@ impl SystemExclusiveData for Voice {
                 Operator::from_bytes(data[0..22].to_vec()),  // OP6
             ],
             peg: Envelope::from_bytes(data[126..134].to_vec()),
-            alg: Algorithm(data[134]),
+            alg: Algorithm::from(data[134]),
             feedback: Depth(data[135]),
             osc_sync: if data[136] == 1 { true } else { false },
-            lfo: Lfo::from_bytes(data[137..144].to_vec()),
+            lfo: Lfo::from_bytes(data[137..143].to_vec()),
+            pitch_mod_sens: Depth(data[143]),
             transpose: Transpose::from_byte(data[144]),
             name: String::from_utf8(data[145..155].to_vec()).unwrap(),
             /*op_flags: [data[155].bit(5), data[155].bit(4), data[155].bit(3), data[155].bit(2), data[155].bit(1), data[155].bit(0),]*/
@@ -737,6 +725,15 @@ impl SystemExclusiveData for Voice {
     }
 
     fn from_packed_bytes(data: Vec<u8>) -> Self {
+        let lfo_bytes = vec![
+            data[112], // LFO speed
+            data[113], // LFO delay
+            data[114], // LF pt mod dep
+            data[115], // LF am mod dep
+            if data[116].bit(0) { 1u8 } else { 0u8 },  // LFO sync
+            data[116].bit_range(1..4), // LFO waveform
+        ];
+
         Voice {
             operators: [  // NOTE: reverse order!
                 Operator::from_packed_bytes(data[85..102].to_vec()),  // OP1
@@ -750,7 +747,8 @@ impl SystemExclusiveData for Voice {
             alg: Algorithm(data[110]),
             feedback: Depth(data[111].bit_range(0..5)),
             osc_sync: if data[111].bit(3) { true } else { false },
-            lfo: Lfo::from_packed_bytes(data[112..117].to_vec()),
+            lfo: Lfo::from_bytes(lfo_bytes),
+            pitch_mod_sens: Depth(data[116].bit_range(4..7)),
             transpose: Transpose::from_byte(data[117]),
             name: String::from_utf8(data[118..128].to_vec()).unwrap(),
             op_flags: [true; 6],
@@ -766,7 +764,6 @@ impl SystemExclusiveData for Voice {
 
         data.extend(self.peg.to_bytes());
 
-        //data.push((self.alg.value() - 1).try_into().unwrap());  // adjust alg# for SysEx
         data.push(self.alg.as_byte());
         data.push(self.feedback.as_byte());
         data.push(if self.osc_sync { 1 } else { 0 });
@@ -775,22 +772,6 @@ impl SystemExclusiveData for Voice {
 
         let padded_name = format!("{:<10}", self.name);
         data.extend(padded_name.into_bytes());
-
-        // "The OPERATOR ON/OFF parameter is not stored with the
-        // voice, and is only transmitted or received while editing a voice.
-        // So it only shows up in parameter change SYS-EX's."
-        // Source: dx7sysexformat.txt
-        /*
-        let mut rev_flags = self.op_flags;
-        rev_flags.reverse();
-        let mut flags: u8 = 0;
-        for (index, flag) in rev_flags.iter().enumerate() {
-            if *flag {
-                flags |= 1 << index
-            }
-        }
-        data.push(flags);
-        */
 
         assert_eq!(data.len(), 155);
 
@@ -811,7 +792,6 @@ impl SystemExclusiveData for Voice {
         data.extend(peg_data);
 
         let algorithm = self.alg.0;
-        //data.push((algorithm - 1).try_into().unwrap());  // bring alg to range 0...31
         data.push(self.alg.as_byte());
         debug!("ALG: {}", algorithm);
 
@@ -819,10 +799,13 @@ impl SystemExclusiveData for Voice {
         data.push(byte111);
         debug!("  b111: {:#08b}", byte111);
 
-        // Inject the pitch mod sensitivity value to the last LFO byte
-        let lfo_data = self.lfo.to_packed_bytes();
+        let mut lfo_data = self.lfo.to_bytes();
+
         debug!("LFO: {} bytes, {:?}", lfo_data.len(), lfo_data);
         data.extend(lfo_data);
+
+        data.push(self.pitch_mod_sens.as_byte());
+        debug!("  PMS: {:#02X}", self.pitch_mod_sens.0);
 
         data.push(self.transpose.as_byte());
         debug!("  TRNSP: {:#02X}", self.transpose.0);
@@ -849,6 +832,7 @@ OP6: {}
 PEG: {}
 ALG: {}, feedback = {}, osc sync = {}
 LFO: {}
+PMS: {}
 Transpose: {}
 ",
             self.name,
@@ -863,6 +847,7 @@ Transpose: {}
             self.feedback.0,
             self.osc_sync,
             self.lfo,
+            self.pitch_mod_sens.0,
             self.transpose.0)
     }
 }
@@ -1049,8 +1034,8 @@ fn make_brass1() -> Voice {
             amd: Level(0),
             sync: false,
             wave: LfoWaveform::Sine,
-            pitch_mod_sens: Depth(3),
         },
+        pitch_mod_sens: Depth(3),
         transpose: Transpose(0),
         name: "BRASS   1 ".to_string(),
         op_flags: [true, true, true, true, true, true],
@@ -1104,8 +1089,8 @@ pub fn make_init_voice() -> Voice {
             amd: Level(0),
             sync: true,
             wave: LfoWaveform::Triangle,
-            pitch_mod_sens: Depth(3),
         },
+        pitch_mod_sens: Depth(3),
         transpose: Transpose(0),
         name: "INIT VOICE".to_string(),
         op_flags: [true, true, true, true, true, true],  // all operators ON
@@ -1233,7 +1218,6 @@ mod tests {
             amd: Level(0),
             sync: false,
             wave: LfoWaveform::Sine,
-            pitch_mod_sens: Depth(3),
         };
 
         assert_eq!(
