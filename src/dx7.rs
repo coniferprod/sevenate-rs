@@ -218,15 +218,6 @@ impl SystemExclusiveData for Envelope {
         }
     }
 
-    /// Makes an envelope generator from packed SysEx message bytes.
-    fn from_packed_bytes(data: Vec<u8>) -> Self {
-        Envelope::from_bytes(data)
-    }
-
-    fn to_packed_bytes(&self) -> Vec<u8> {
-        self.to_bytes()
-    }
-
     /// Gets the SysEx bytes of this EG.
     fn to_bytes(&self) -> Vec<u8> {
         vec![
@@ -339,6 +330,17 @@ impl KeyboardLevelScaling {
             right_curve: ScalingCurve::lin_neg(),
         }
     }
+
+    /// Makes new keyboard level scaling settings from packed SysEx bytes.
+    fn from_packed_bytes(data: Vec<u8>) -> Self {
+        Self {
+            breakpoint: data[0],
+            left_depth: data[1],
+            right_depth: data[2],
+            left_curve: ScalingCurve::from_byte(data[3] >> 4),
+            right_curve: ScalingCurve::from_byte(data[3] & 0x0f),
+        }
+    }
 }
 
 impl fmt::Display for KeyboardLevelScaling {
@@ -360,17 +362,6 @@ impl SystemExclusiveData for KeyboardLevelScaling {
         }
     }
 
-    /// Makes new keyboard level scaling settings from packed SysEx bytes.
-    fn from_packed_bytes(data: Vec<u8>) -> Self {
-        Self {
-            breakpoint: data[0],
-            left_depth: data[1],
-            right_depth: data[2],
-            left_curve: ScalingCurve::from_byte(data[3] >> 4),
-            right_curve: ScalingCurve::from_byte(data[3] & 0x0f),
-        }
-    }
-
     /// Gets the SysEx bytes representing this set of parameters.
     fn to_bytes(&self) -> Vec<u8> {
         vec![
@@ -379,16 +370,6 @@ impl SystemExclusiveData for KeyboardLevelScaling {
             self.right_depth,
             self.left_curve.to_bytes(),
             self.right_curve.to_bytes(),
-        ]
-    }
-
-    /// Gets the packed SysEx bytes representing this set of parameters.
-    fn to_packed_bytes(&self) -> Vec<u8> {
-        vec![
-            self.breakpoint,
-            self.left_depth,
-            self.right_depth,
-            self.left_curve.to_bytes() | (self.right_curve.to_bytes() << 2),
         ]
     }
 
@@ -450,31 +431,11 @@ impl Operator {
             detune: Detune(0),
         }
     }
-}
-
-impl SystemExclusiveData for Operator {
-    /// Makes a new operator from SysEx bytes.
-    fn from_bytes(data: Vec<u8>) -> Self {
-        let eg_bytes = &data[0..8];
-        let level_scaling_bytes = &data[8..13];
-        Self {
-            eg: Envelope::from_bytes(eg_bytes.to_vec()),
-            kbd_level_scaling: KeyboardLevelScaling::from_bytes(level_scaling_bytes.to_vec()),
-            kbd_rate_scaling: Depth(data[13]),
-            amp_mod_sens: data[14],
-            key_vel_sens: Depth(data[15]),
-            output_level: Level(data[16]),
-            mode: if data[17] == 0b1 { OperatorMode::Fixed } else { OperatorMode::Ratio },
-            coarse: Coarse(data[18]),
-            fine: Level(data[19]),
-            detune: Detune::from(data[20]),
-        }
-    }
 
     /// Makes a new operator from packed SysEx bytes.
     fn from_packed_bytes(data: Vec<u8>) -> Self {
         Operator {
-            eg: Envelope::from_packed_bytes(data[0..8].to_vec()),
+            eg: Envelope::from_bytes(data[0..8].to_vec()),
             kbd_level_scaling: KeyboardLevelScaling::from_packed_bytes(data[8..12].to_vec()),
             kbd_rate_scaling: Depth(data[12].bit_range(0..3)),
             amp_mod_sens: data[13].bit_range(0..2),
@@ -487,32 +448,22 @@ impl SystemExclusiveData for Operator {
         }
     }
 
-    /// Gets the SysEx bytes representing the operator.
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut data: Vec<u8> = Vec::new();
-        data.extend(self.eg.to_bytes());
-        data.extend(self.kbd_level_scaling.to_bytes());
-        data.push(self.kbd_rate_scaling.as_byte());
-        data.push(self.amp_mod_sens);
-        data.push(self.key_vel_sens.as_byte());
-        data.push(self.output_level.as_byte());
-        data.push(self.mode as u8);
-        data.push(self.coarse.as_byte());
-        data.push(self.fine.as_byte());
-        data.push(self.detune.as_byte()); // 0 = detune -7, 7 = 0, 14 = +7
-        assert_eq!(data.len(), 21);
-        data
-    }
-
     /// Gets the packed SysEx bytes representing the operator.
     fn to_packed_bytes(&self) -> Vec<u8> {
         let mut data: Vec<u8> = Vec::new();
 
-        let eg_data = self.eg.to_packed_bytes();
+        // EG is always unpacked.
+        let eg_data = self.eg.to_bytes();
         debug!("  EG: {} bytes, {:?}", eg_data.len(), eg_data);
         data.extend(eg_data);
 
-        let kls_data = self.kbd_level_scaling.to_packed_bytes();
+        // Pack the keyboard level scaling: replace the last two bytes
+        // with a combination of the left and right curves.
+        let mut kls_data = self.kbd_level_scaling.to_bytes();
+        let _ = kls_data.pop();
+        let _ = kls_data.pop();
+        let byte11 = self.kbd_level_scaling.left_curve.to_bytes() | (self.kbd_level_scaling.right_curve.to_bytes() << 2);
+        kls_data.push(byte11);
         debug!("  KLS: {} bytes, {:?}", kls_data.len(), kls_data);
         data.extend(kls_data);
 
@@ -537,6 +488,44 @@ impl SystemExclusiveData for Operator {
         debug!("  FF:  {:#08b}", fine);
         data.push(self.fine.as_byte());
 
+        data
+    }
+
+}
+
+impl SystemExclusiveData for Operator {
+    /// Makes a new operator from SysEx bytes.
+    fn from_bytes(data: Vec<u8>) -> Self {
+        let eg_bytes = &data[0..8];
+        let level_scaling_bytes = &data[8..13];
+        Self {
+            eg: Envelope::from_bytes(eg_bytes.to_vec()),
+            kbd_level_scaling: KeyboardLevelScaling::from_bytes(level_scaling_bytes.to_vec()),
+            kbd_rate_scaling: Depth(data[13]),
+            amp_mod_sens: data[14],
+            key_vel_sens: Depth(data[15]),
+            output_level: Level(data[16]),
+            mode: if data[17] == 0b1 { OperatorMode::Fixed } else { OperatorMode::Ratio },
+            coarse: Coarse(data[18]),
+            fine: Level(data[19]),
+            detune: Detune::from(data[20]),
+        }
+    }
+
+    /// Gets the SysEx bytes representing the operator.
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut data: Vec<u8> = Vec::new();
+        data.extend(self.eg.to_bytes());
+        data.extend(self.kbd_level_scaling.to_bytes());
+        data.push(self.kbd_rate_scaling.as_byte());
+        data.push(self.amp_mod_sens);
+        data.push(self.key_vel_sens.as_byte());
+        data.push(self.output_level.as_byte());
+        data.push(self.mode as u8);
+        data.push(self.coarse.as_byte());
+        data.push(self.fine.as_byte());
+        data.push(self.detune.as_byte()); // 0 = detune -7, 7 = 0, 14 = +7
+        assert_eq!(data.len(), 21);
         data
     }
 
@@ -586,6 +575,7 @@ pub struct Lfo {
     pub amd: Level,    // 0 ~ 99
     pub sync: bool,
     pub wave: LfoWaveform,
+    pub pitch_mod_sens: Depth,  // 0 ~ 7
 }
 
 impl Lfo {
@@ -598,6 +588,7 @@ impl Lfo {
             amd: Level(0),
             sync: true,
             wave: LfoWaveform::Triangle,
+            pitch_mod_sens: Depth(0),
         }
     }
 
@@ -610,19 +601,21 @@ impl Lfo {
             amd: Level::random_value(),
             sync: true,
             wave: LfoWaveform::Triangle,
+            pitch_mod_sens: Depth::random_value(),
         }
     }
 }
 
 impl fmt::Display for Lfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "speed = {}, delay = {}, PMD = {}, AMD = {}, sync = {}, wave = {:?}",
+        write!(f, "speed = {}, delay = {}, PMD = {}, AMD = {}, sync = {}, wave = {:?}, PMS = {}",
             self.speed.0,
             self.delay.0,
             self.pmd.0,
             self.amd.0,
             self.sync,
-            self.wave)
+            self.wave,
+            self.pitch_mod_sens.0)
     }
 }
 
@@ -646,6 +639,7 @@ impl SystemExclusiveData for Lfo {
                     LfoWaveform::Triangle
                 }
             },
+            pitch_mod_sens: Depth(data[6])
         }
     }
 
@@ -657,11 +651,12 @@ impl SystemExclusiveData for Lfo {
             self.amd.as_byte(),
             if self.sync { 1 } else { 0 },
             self.wave as u8,
+            self.pitch_mod_sens.as_byte(),
         ]
     }
 
     fn data_size(&self) -> usize {
-        6
+        7
     }
 }
 
@@ -676,7 +671,6 @@ pub struct Voice {
     pub feedback: Depth,
     pub osc_sync: bool,
     pub lfo: Lfo,
-    pub pitch_mod_sens: Depth,  // 0 ~ 7
     pub transpose: Transpose,  // number of octaves to transpose (-2...+2) (12 = C2 (value is 0~48 in SysEx))
     pub name: String,
     pub op_flags: [bool; 6],
@@ -702,11 +696,83 @@ impl Voice {
             feedback: Depth(0),
             osc_sync: true,
             lfo: Lfo::new(),
-            pitch_mod_sens: Depth(0),
             transpose: Transpose(0),
             name: "INIT VOICE".to_string(),
             op_flags: [true, true, true, true, true, true],
         }
+    }
+
+    fn from_packed_bytes(data: Vec<u8>) -> Self {
+        let lfo_bytes = vec![
+            data[112], // LFO speed
+            data[113], // LFO delay
+            data[114], // LF pt mod dep
+            data[115], // LF am mod dep
+            if data[116].bit(0) { 1u8 } else { 0u8 },  // LFO sync
+            data[116].bit_range(1..4), // LFO waveform
+            data[116].bit_range(4..7), // pitch mod sensitivity)
+        ];
+
+        Voice {
+            operators: [  // NOTE: reverse order!
+                Operator::from_packed_bytes(data[85..102].to_vec()),  // OP1
+                Operator::from_packed_bytes(data[68..85].to_vec()),  // OP2
+                Operator::from_packed_bytes(data[51..68].to_vec()),  // OP3
+                Operator::from_packed_bytes(data[34..51].to_vec()),  // OP4
+                Operator::from_packed_bytes(data[17..34].to_vec()),  // OP5
+                Operator::from_packed_bytes(data[0..17].to_vec()),  // OP6
+            ],
+            peg: Envelope::from_bytes(data[102..110].to_vec()),
+            alg: Algorithm(data[110]),
+            feedback: Depth(data[111].bit_range(0..5)),
+            osc_sync: if data[111].bit(3) { true } else { false },
+            lfo: Lfo::from_bytes(lfo_bytes),
+            transpose: Transpose::from_byte(data[117]),
+            name: String::from_utf8(data[118..128].to_vec()).unwrap(),
+            op_flags: [true; 6],
+        }
+    }
+
+    fn to_packed_bytes(&self) -> Vec<u8> {
+        let mut data: Vec<u8> = Vec::new();
+
+        for i in (0..6).rev() {  // NOTE: reverse order!
+            let operator_data = self.operators[i].to_packed_bytes();
+            debug!("OP{}: {} bytes, {:?}", i + 1, operator_data.len(), operator_data);
+            data.extend(operator_data);
+        }
+
+        let peg_data = self.peg.to_bytes(); // not packed!
+        debug!("PEG: {} bytes, {:?}", peg_data.len(), peg_data);
+        data.extend(peg_data);
+
+        let algorithm = self.alg.0;
+        data.push(self.alg.as_byte());
+        debug!("ALG: {}", algorithm);
+
+        let byte111 = self.feedback.as_byte() | ((if self.osc_sync { 1 } else { 0 }) << 3);
+        data.push(byte111);
+        debug!("  b111: {:#08b}", byte111);
+
+        let mut lfo_data = self.lfo.to_bytes();
+        debug!("LFO: {} bytes, {:?}", lfo_data.len(), lfo_data);
+        let _ = lfo_data.pop();  // pop off PMS
+        let _ = lfo_data.pop();  // pop off LFO waveform
+        let _ = lfo_data.pop();  // pop off LFO sync
+        let mut byte116: u8 = if self.lfo.sync { 1 } else { 0 };
+        byte116.set_bit_range(1..4, self.lfo.wave as u8);
+        byte116.set_bit_range(4..7, self.lfo.pitch_mod_sens.0);
+        lfo_data.push(byte116);
+        data.extend(lfo_data);
+
+        data.push(self.transpose.as_byte());
+        debug!("  TRNSP: {:#02X}", self.transpose.0);
+
+        let padded_name = format!("{:<10}", self.name);
+        debug!("  NAME: '{}'", padded_name);
+        data.extend(padded_name.into_bytes());
+
+        data
     }
 }
 
@@ -731,43 +797,10 @@ impl SystemExclusiveData for Voice {
             alg: Algorithm::from(data[134]),
             feedback: Depth(data[135]),
             osc_sync: if data[136] == 1 { true } else { false },
-            lfo: Lfo::from_bytes(data[137..143].to_vec()),
-            pitch_mod_sens: Depth(data[143]),
+            lfo: Lfo::from_bytes(data[137..144].to_vec()),
             transpose: Transpose::from_byte(data[144]),
             name: String::from_utf8(data[145..155].to_vec()).unwrap(),
-            /*op_flags: [data[155].bit(5), data[155].bit(4), data[155].bit(3), data[155].bit(2), data[155].bit(1), data[155].bit(0),]*/
             op_flags: [true, true, true, true, true, true],
-        }
-    }
-
-    fn from_packed_bytes(data: Vec<u8>) -> Self {
-        let lfo_bytes = vec![
-            data[112], // LFO speed
-            data[113], // LFO delay
-            data[114], // LF pt mod dep
-            data[115], // LF am mod dep
-            if data[116].bit(0) { 1u8 } else { 0u8 },  // LFO sync
-            data[116].bit_range(1..4), // LFO waveform
-        ];
-
-        Voice {
-            operators: [  // NOTE: reverse order!
-                Operator::from_packed_bytes(data[85..102].to_vec()),  // OP1
-                Operator::from_packed_bytes(data[68..85].to_vec()),  // OP2
-                Operator::from_packed_bytes(data[51..68].to_vec()),  // OP3
-                Operator::from_packed_bytes(data[34..51].to_vec()),  // OP4
-                Operator::from_packed_bytes(data[17..34].to_vec()),  // OP5
-                Operator::from_packed_bytes(data[0..17].to_vec()),  // OP6
-            ],
-            peg: Envelope::from_packed_bytes(data[102..110].to_vec()),
-            alg: Algorithm(data[110]),
-            feedback: Depth(data[111].bit_range(0..5)),
-            osc_sync: if data[111].bit(3) { true } else { false },
-            lfo: Lfo::from_bytes(lfo_bytes),
-            pitch_mod_sens: Depth(data[116].bit_range(4..7)),
-            transpose: Transpose::from_byte(data[117]),
-            name: String::from_utf8(data[118..128].to_vec()).unwrap(),
-            op_flags: [true; 6],
         }
     }
 
@@ -794,47 +827,8 @@ impl SystemExclusiveData for Voice {
         data
     }
 
-    fn to_packed_bytes(&self) -> Vec<u8> {
-        let mut data: Vec<u8> = Vec::new();
-
-        for i in (0..6).rev() {  // NOTE: reverse order!
-            let operator_data = self.operators[i].to_packed_bytes();
-            debug!("OP{}: {} bytes, {:?}", i + 1, operator_data.len(), operator_data);
-            data.extend(operator_data);
-        }
-
-        let peg_data = self.peg.to_bytes(); // not packed!
-        debug!("PEG: {} bytes, {:?}", peg_data.len(), peg_data);
-        data.extend(peg_data);
-
-        let algorithm = self.alg.0;
-        data.push(self.alg.as_byte());
-        debug!("ALG: {}", algorithm);
-
-        let byte111 = self.feedback.as_byte() | ((if self.osc_sync { 1 } else { 0 }) << 3);
-        data.push(byte111);
-        debug!("  b111: {:#08b}", byte111);
-
-        let mut lfo_data = self.lfo.to_bytes();
-
-        debug!("LFO: {} bytes, {:?}", lfo_data.len(), lfo_data);
-        data.extend(lfo_data);
-
-        data.push(self.pitch_mod_sens.as_byte());
-        debug!("  PMS: {:#02X}", self.pitch_mod_sens.0);
-
-        data.push(self.transpose.as_byte());
-        debug!("  TRNSP: {:#02X}", self.transpose.0);
-
-        let padded_name = format!("{:<10}", self.name);
-        debug!("  NAME: '{}'", padded_name);
-        data.extend(padded_name.into_bytes());
-
-        data
-    }
-
     fn data_size(&self) -> usize {
-        154
+        155
     }
 
 }
@@ -853,7 +847,6 @@ OP6: {}
 PEG: {}
 ALG: {}, feedback = {}, osc sync = {}
 LFO: {}
-PMS: {}
 Transpose: {}
 ",
             self.name,
@@ -868,7 +861,6 @@ Transpose: {}
             self.feedback.0,
             self.osc_sync,
             self.lfo,
-            self.pitch_mod_sens.0,
             self.transpose.0)
     }
 }
@@ -883,6 +875,16 @@ pub struct Cartridge {
 }
 
 impl Cartridge {
+    fn from_packed_bytes(data: Vec<u8>) -> Self {
+        let mut offset = 0;
+        let mut voices = Vec::<Voice>::new();
+        for _ in 0..VOICE_COUNT {
+            voices.push(Voice::from_packed_bytes(data[offset..offset + 128].to_vec()));
+            offset += 128;
+        }
+        Cartridge { voices }
+    }
+
     pub fn to_packed_bytes(&self) -> Vec<u8> {
         let mut data: Vec<u8> = Vec::new();
 
@@ -908,37 +910,13 @@ impl SystemExclusiveData for Cartridge {
     fn from_bytes(data: Vec<u8>) -> Self {
         // Delegate to the packed bytes constructor,
         // since the cartridge data is always in packed format.
-        warn!("from_bytes() called for Cartridge, delegating to from_packed_bytes()");
         Cartridge::from_packed_bytes(data)
-    }
-
-    fn from_packed_bytes(data: Vec<u8>) -> Self {
-        let mut offset = 0;
-        let mut voices = Vec::<Voice>::new();
-        for _ in 0..VOICE_COUNT {
-            voices.push(Voice::from_packed_bytes(data[offset..offset + 128].to_vec()));
-            offset += 128;
-        }
-        Cartridge { voices }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         // Delegate to the to_packed_bytes() method,
         // since the cartridge data is always in packed format.
-        warn!("to_bytes() called for Cartridge, delegating to to_packed_bytes()");
         self.to_packed_bytes()
-    }
-
-    fn to_packed_bytes(&self) -> Vec<u8> {
-        let mut data: Vec<u8> = Vec::new();
-
-        for (index, voice) in self.voices.iter().enumerate() {
-            let voice_data = voice.to_packed_bytes();
-            debug!("Voice #{} packed data length = {} bytes", index, voice_data.len());
-            data.extend(voice_data);
-        }
-
-        data
     }
 
     fn data_size(&self) -> usize { 4096 }
@@ -948,8 +926,8 @@ impl SystemExclusiveData for Cartridge {
 // Utilities for creating voices and cartridges
 //
 
-// Makes a new voice based on the "BRASS1" settings in the DX7 manual.
-fn make_brass1() -> Voice {
+/// Makes a new voice based on the "BRASS1" settings in the DX7 manual.
+pub fn make_brass1() -> Voice {
     let kbd_level_scaling = KeyboardLevelScaling {
         breakpoint: 60 - 21,
         left_depth: 0,
@@ -1055,16 +1033,16 @@ fn make_brass1() -> Voice {
             amd: Level(0),
             sync: false,
             wave: LfoWaveform::Sine,
+            pitch_mod_sens: Depth(3),
         },
-        pitch_mod_sens: Depth(3),
         transpose: Transpose(0),
         name: "BRASS   1 ".to_string(),
         op_flags: [true, true, true, true, true, true],
     }
 }
 
-// Makes an initialized voice. The defaults are as described in
-// Howard Massey's "The Complete DX7", Appendix B.
+/// Makes an initialized voice. The defaults are as described in
+/// Howard Massey's "The Complete DX7", Appendix B.
 pub fn make_init_voice() -> Voice {
     let init_eg = Envelope::new();
 
@@ -1110,8 +1088,8 @@ pub fn make_init_voice() -> Voice {
             amd: Level(0),
             sync: true,
             wave: LfoWaveform::Triangle,
+            pitch_mod_sens: Depth(3),
         },
-        pitch_mod_sens: Depth(3),
         transpose: Transpose(0),
         name: "INIT VOICE".to_string(),
         op_flags: [true, true, true, true, true, true],  // all operators ON
@@ -1174,23 +1152,6 @@ mod tests {
     }
 
     #[test]
-    fn test_kbd_level_scaling_to_packed_bytes() {
-        // From ROM1A: BRASS 1
-        let ks = KeyboardLevelScaling {
-            breakpoint: 60 - 21,
-            left_depth: 54,
-            right_depth: 50,
-            left_curve: ScalingCurve::exp_neg(),
-            right_curve: ScalingCurve::exp_neg(),
-        };
-
-        assert_eq!(
-            ks.to_packed_bytes(),
-            vec![39, 54, 50, 5]
-        )
-    }
-
-    #[test]
     fn test_op_to_packed_bytes() {
         let op = Operator {
             eg: Envelope {
@@ -1216,7 +1177,9 @@ mod tests {
 
         let data = op.to_packed_bytes();
 
-        let expected_data = vec![0x31u8, 0x63, 0x1c, 0x44, 0x62, 0x62, 0x5b, 0x00, 0x27, 0x36, 0x32, 0x05, 0x3c, 0x08, 0x52, 0x02, 0x00];
+        let expected_data = vec![
+            0x31u8, 0x63, 0x1c, 0x44, 0x62, 0x62, 0x5b, 0x00,
+            0x27, 0x36, 0x32, 0x05, 0x3c, 0x08, 0x52, 0x02, 0x00];
 
         let diff_offset = first_different_offset(&expected_data, &data);
         match diff_offset {
@@ -1228,23 +1191,6 @@ mod tests {
         }
 
         assert_eq!(data, expected_data);
-    }
-
-    #[test]
-    fn test_lfo_to_packed_bytes() {
-        let lfo = Lfo {
-            speed: Level(37),
-            delay: Level(0),
-            pmd: Level(5),
-            amd: Level(0),
-            sync: false,
-            wave: LfoWaveform::Sine,
-        };
-
-        assert_eq!(
-            lfo.to_packed_bytes(),
-            vec![37, 0, 5, 0, 0x38]
-        );
     }
 
     #[test]
@@ -1272,6 +1218,12 @@ mod tests {
         }
 
         None
+    }
+
+    #[test]
+    fn test_cartridge_length() {
+        let cartridge = Cartridge::default();
+        assert_eq!(cartridge.to_bytes().len(), 4096);
     }
 
     #[test]
