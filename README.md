@@ -176,6 +176,13 @@ Maybe some day I will come up with a better approximation of a subrange
 type in Rust, because they most likely will never be added to the
 language.
 
+### Using the newtype pattern
+
+For leveraging the newtype pattern in Rust, I have found the article 
+[The Newtype Pattern in Rust](https://www.worthe-it.co.za/blog/2020-10-31-newtype-pattern-in-rust.html) by Justin Wernick to be 
+quite helpful. It also brought [the derive_more crate](https://crates.io/crates/derive_more) by Jelte Fennema to my attention.
+
+
 ## Leaning on the From trait
 
 Most DX7 parameters appear as one byte in the System Exclusive data.

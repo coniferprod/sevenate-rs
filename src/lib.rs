@@ -1,13 +1,28 @@
-mod dx7;
+pub mod dx7;
 
-/// Parsing and generating MIDI System Exclusive data.
-pub trait SystemExclusiveData {
-    fn from_bytes(data: Vec<u8>) -> Self;
-    fn to_bytes(&self) -> Vec<u8>;
-    fn data_size(&self) -> usize;
+use std::fmt;
+
+/// Error type for parsing data from MIDI System Exclusive bytes.
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum ParseError {
+    InvalidLength(u32, u32),  // actual, expected
+    InvalidChecksum(u8, u8),  // actual, expected
+    InvalidData(u32),  // offset in data
+    Unidentified,  // can't identify this kind
 }
 
-/// An `i32`` constrained to a range.
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match self {
+            ParseError::InvalidLength(actual, expected) => format!("Got {} bytes of data, expected {} bytes.", actual, expected),
+            ParseError::InvalidChecksum(actual, expected) => format!("Computed checksum was {}H, expected {}H.", actual, expected),
+            ParseError::InvalidData(offset) => format!("Invalid data at offset {}.", offset),
+            ParseError::Unidentified => String::from("Unable to identify this System Exclusive file."),
+        })
+    }
+}
+
+/// An `i32` constrained to a range.
 pub trait Ranged {
     fn first() -> i32;
     fn last() -> i32;
