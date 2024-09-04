@@ -87,3 +87,9 @@ impl Ranged2 for Algorithm2 {
     }
 
 }
+
+impl Default for Algorithm2 {
+    fn default() -> Self {
+        Self::new(Self::DEFAULT)
+    }
+}
