@@ -178,12 +178,69 @@ language.
 
 ### Using the newtype pattern
 
-For leveraging the newtype pattern in Rust, I have found the article 
-[The Newtype Pattern in Rust](https://www.worthe-it.co.za/blog/2020-10-31-newtype-pattern-in-rust.html) by Justin Wernick to be 
+For leveraging the newtype pattern in Rust, I have found the article
+[The Newtype Pattern in Rust](https://www.worthe-it.co.za/blog/2020-10-31-newtype-pattern-in-rust.html) by Justin Wernick to be
 quite helpful. It also brought [the derive_more crate](https://crates.io/crates/derive_more) by Jelte Fennema to my attention.
 
+### One more thing: associated consts
 
-## Leaning on the From trait
+While reading "Programming in Rust" 2nd Edition I came across a feature
+of traits (is that a tautology or what) that seems to fit the bill.
+You can define associated consts in a trait, but leave their actual values
+for the implementor of the trait to define.
+
+For example, I can define a trait with `MIN`, `MAX`, and `DEFAULT` and related methods
+like this:
+
+    pub trait Ranged2 {
+        const MIN: i32;
+        const MAX: i32;
+        const DEFAULT: i32;
+
+        fn new(value: i32) -> Self;
+        fn value(&self) -> i32;
+        fn is_valid(value: i32) -> bool;
+        fn random_value() -> Self;
+    }
+
+Then I make a newtype, and make it implement this trait:
+
+    pub struct Algorithm2(i32);
+
+    impl Ranged2 for Algorithm2 {
+        const MIN: i32 = 1;
+        const MAX: i32 = 32;
+        const DEFAULT: i32 = 32;
+
+        fn new(value: i32) -> Self {
+            if Self::is_valid(value) {
+                Self(value)
+            }
+            else {
+                panic!("expected value in range {}...{}, got {}",
+                    Self::MIN, Self::MAX, value);
+            }
+        }
+
+        fn value(&self) -> i32 { self.0 }
+
+        fn is_valid(value: i32) -> bool {
+            value >= Self::MIN && value <= Self::MAX
+        }
+
+        fn random_value() -> Self {
+            let mut rng = rand::thread_rng();
+            Self::new(rng.gen_range(Self::MIN..=Self::MAX))
+        }
+    }
+
+How's that for a subrange type? It is immutable, and other newtypes like this
+are easy to implement. You could also make a Rust macro to generate the code
+for you (something that I haven't tried yet, but am interested in), to avoid
+repetitive code. Essentially the only things that need to change are the name
+of the type and the values of the associated consts in the trait implementation.
+
+## Leaning on the `From` trait
 
 Most DX7 parameters appear as one byte in the System Exclusive data.
 However, they often need a little adjustment to get them from the
