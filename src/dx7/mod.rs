@@ -11,11 +11,6 @@ use crate::{
     ParseError
 };
 
-use crate::dx7::sysex::{
-    voice_checksum,
-    SystemExclusiveData
-};
-
 use crate::dx7::operator::{
     Operator,
     OperatorMode,
@@ -28,6 +23,11 @@ use crate::dx7::operator::{
 use crate::dx7::envelope::{
     Envelope,
     Rate
+};
+
+use crate::dx7::sysex::{
+    SystemExclusiveData,
+    checksum,
 };
 
 use crate::dx7::voice::Voice;
@@ -46,48 +46,50 @@ pub mod sysex;
 
 /// MIDI channel (1...16)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct MIDIChannel {
-    value: i32,
-}
+pub struct MIDIChannel(i32);
+
 impl MIDIChannel {
     pub fn as_byte(&self) -> u8 {
-        (self.value - 1) as u8  // adjust to 0...15 for SysEx
+        (self.0 - 1) as u8  // adjust to 0...15 for SysEx
     }
 }
 
 impl Ranged for MIDIChannel {
+    const MIN: i32 = 1;
+    const MAX: i32 = 16;
+    const DEFAULT: i32 = Self::MIN;
+
     fn new(value: i32) -> Self {
-        if MIDIChannel::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { 1 }
-    fn last() -> i32 { 16 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        MIDIChannel::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
+
+// NOTE: Implementing TryFrom means that TryInto is implemented as well.
 
 impl TryFrom<u8> for MIDIChannel {
     type Error = &'static str;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let v = value + 1; // make into 1...16
-        if v >= 1 && v <= 16 {
-            Ok(MIDIChannel::new(v.into()))
+        let v: i32 = (value + 1).into(); // make into 1...16
+        if MIDIChannel::is_valid(v) {
+            Ok(MIDIChannel::new(v))
         }
         else {
             Err("Bad MIDI channel value")
@@ -99,139 +101,143 @@ pub static ALGORITHM_DIAGRAMS: [&str; 32] = include!("algorithms.in");
 
 /// Algorithm (1...32)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Algorithm {
-    value: i32,
-}
+pub struct Algorithm(i32);
 
 impl Ranged for Algorithm {
+    const MIN: i32 = 1;
+    const MAX: i32 = 32;
+    const DEFAULT: i32 = 32;
+
     fn new(value: i32) -> Self {
-        if Algorithm::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { 1 }
-    fn last() -> i32 { 32 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Algorithm::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
+    }
+}
+
+impl Default for Algorithm {
+    fn default() -> Self {
+        Self::new(Self::DEFAULT)
     }
 }
 
 impl Algorithm {
     pub fn as_byte(&self) -> u8 {
-        (self.value - 1) as u8  // adjust to 0...31 for SysEx
-    }
-}
-
-impl Default for Algorithm {
-    fn default() -> Algorithm {
-        Algorithm::new(Algorithm::first())
+        (self.0 - 1) as u8  // adjust to 0...31 for SysEx
     }
 }
 
 impl fmt::Display for Algorithm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "#{}:\n{}",
-            self.value,
-            ALGORITHM_DIAGRAMS[(self.value as usize) - 1])
+            self.0,
+            ALGORITHM_DIAGRAMS[(self.0 as usize) - 1])
     }
 }
 
-impl From<u8> for Algorithm {
-    fn from(item: u8) -> Self {
-        Algorithm::new((item + 1) as i32)  // bring into 1...32
+impl TryFrom<u8> for Algorithm {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        let v: i32 = (value + 1).into(); // make into 1...32
+        if Algorithm::is_valid(v) {
+            Ok(Algorithm::new(v))
+        }
+        else {
+            Err("bad algorithm value")
+        }
     }
 }
 
 /// Detune (-7...+7), represented in SysEx as 0...14.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Detune {
-    value: i32,
-}
+pub struct Detune(i32);
 
 impl Detune {
     pub fn as_byte(&self) -> u8 {
-        (self.value + 7) as u8  // adjust for SysEx
+        (self.0 + 7) as u8  // adjust for SysEx
     }
 }
 
 impl Default for Detune {
     fn default() -> Detune {
-        Detune::new(0)
+        Detune::new(Detune::DEFAULT)
     }
 }
 
 impl fmt::Display for Detune {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
     }
 }
 
 impl From<u8> for Detune {
     fn from(item: u8) -> Self {
-        Detune::new((item + 7) as i32)
+        Detune::new((item - 7) as i32)
     }
 }
 
 impl Ranged for Detune {
+    const MIN: i32 = -7;
+    const MAX: i32 = 7;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Detune::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { -7 }
-    fn last() -> i32 { 7 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Detune::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
 /// Coarse (0...31).
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Coarse {
-    value: i32
-}
+pub struct Coarse(i32);
 
 impl Coarse {
     pub fn as_byte(&self) -> u8 {
-        self.value as u8
+        self.0 as u8
     }
 }
 
 impl Default for Coarse {
     fn default() -> Coarse {
-        Coarse::new(0)
+        Coarse::new(Coarse::DEFAULT)
     }
 }
 
 impl fmt::Display for Coarse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -242,156 +248,156 @@ impl From<u8> for Coarse {
 }
 
 impl Ranged for Coarse {
+    const MIN: i32 = 0;
+    const MAX: i32 = 31;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Coarse::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { 0 }
-    fn last() -> i32 { 31 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Coarse::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
-/// Depth (0...7) for sensitivity values.
+/// Depth (0...7) for keyboard rate scaling,
+/// key velocity sensitivity, feedback,
+/// pitch mod sensitivity.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Depth {
-    value: i32
-}
+pub struct Depth(i32);
 
 impl Depth {
     pub fn as_byte(&self) -> u8 {
-        self.value as u8
+        self.0 as u8
     }
 }
 
 impl Ranged for Depth {
+    const MIN: i32 = 0;
+    const MAX: i32 = 7;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Depth::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { -7 }
-    fn last() -> i32 { 7 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Depth::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
 impl Default for Depth {
     fn default() -> Depth {
-        Depth::new(0)
+        Depth::new(Depth::DEFAULT)
     }
 }
 
-/// Key transpose in octaves (-2...2).
+/// Key transpose in semitones (-24...24).
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Transpose {
-    value: i32
-}
+pub struct Transpose(i32);
 
 impl Transpose {
     pub fn as_byte(&self) -> u8 {
         // Convert to the range 0...48
-        (self.value + 2) as u8 * 12
+        (self.0 + 24) as u8
     }
 }
 
 impl Default for Transpose {
     fn default() -> Transpose {
-        Transpose::new(0)
+        Transpose::new(Transpose::DEFAULT)
     }
 }
 
 impl fmt::Display for Transpose {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
     }
 }
 
 impl From<u8> for Transpose {
     /// Makes a key transpose from a System Exclusive data byte.
     fn from(item: u8) -> Self {
-        // SysEx value is 0...48, corresponding to four octaves (with 12 semitones each):
-        // 0 = -2
-        let semitones: i32 = item as i32 - 24;  // bring to range -24...24
-        Transpose::new((semitones / 12).try_into().unwrap())
+        // SysEx value is 0...48, corresponding to four octaves
+        // with 12 semitones each)
+        let semitones = item as i32 - 24;  // bring to range -24...24
+        Transpose::new(semitones).try_into().unwrap()
     }
 }
 
 impl Ranged for Transpose {
+    const MIN: i32 = -24;
+    const MAX: i32 = 24;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Transpose::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { -2 }
-    fn last() -> i32 { 2 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Transpose::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
+/// Amplitude modulation sensitivity (0...3)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Sensitivity {
-    value: i32
-}
+pub struct Sensitivity(i32);
 
 impl Sensitivity {
     pub fn as_byte(&self) -> u8 {
-        self.value as u8
+        self.0 as u8
     }
 }
 
 impl Default for Sensitivity {
     fn default() -> Sensitivity {
-        Sensitivity::new(0)
+        Sensitivity::new(Sensitivity::DEFAULT)
     }
 }
 
 impl fmt::Display for Sensitivity {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -402,40 +408,39 @@ impl From<u8> for Sensitivity {
 }
 
 impl Ranged for Sensitivity {
+    const MIN: i32 = 0;
+    const MAX: i32 = 3;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Sensitivity::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { 0 }
-    fn last() -> i32 { 3 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Sensitivity::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
 /// Envelope level (or operator output level) (0...99)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Level {
-    value: i32
-}
+pub struct Level(i32);
 
 impl Level {
     pub fn as_byte(&self) -> u8 {
-        self.value as u8
+        self.0 as u8
     }
 }
 
@@ -447,7 +452,7 @@ impl Default for Level {
 
 impl fmt::Display for Level {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -458,28 +463,29 @@ impl From<u8> for Level {
 }
 
 impl Ranged for Level {
+    const MIN: i32 = 0;
+    const MAX: i32 = 99;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Level::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { 0 }
-    fn last() -> i32 { 99 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Level::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
@@ -685,18 +691,6 @@ mod tests {
     }
 
     #[test]
-    fn test_checksum() {
-        // Yamaha DX7 original ROM1A sound bank (data only, no SysEx header/terminator
-        // or checksum.)
-        let rom1a_data: [u8; 4096] = include!("rom1asyx.in");
-
-        // The checksum is 0x33
-        let rom1a_data_checksum = voice_checksum(&rom1a_data.to_vec());
-        assert_eq!(0x33, rom1a_data_checksum);
-        //debug!("ROM1A data checksum = {:X}h", rom1a_data_checksum);
-    }
-
-    #[test]
     #[should_panic(expected = "expected value in range")]
     fn test_invalid_new_panics() {
         let alg = Algorithm::new(0);
@@ -761,15 +755,28 @@ mod tests {
 
     #[test]
     fn test_transpose_from_byte() {
-        let transpose_zero = Transpose::from(24);
-        assert_eq!(transpose_zero.value, 0);
-        let transpose_minus_one = Transpose::from(12);
-        assert_eq!(transpose_minus_one.value, -1);
+        let zero = Transpose::from(48);  // from SysEx byte
+        assert_eq!(zero.value(), 24);
+    }
+
+    #[test]
+    fn test_transpose_from_byte_minus_two() {
+        let minus_two_octaves = Transpose::from(0);  // from SysEx byte
+        assert_eq!(minus_two_octaves.value(), -24);
+    }
+
+    #[test]
+    fn test_transpose_from_byte_minus_one() {
+        let minus_one_octave = Transpose::from(12);  // from SysEx byte
+        assert_eq!(minus_one_octave.value(), -12);
     }
 
     #[test]
     fn test_transpose_as_byte() {
-        let transpose_plus_one = Transpose::from(1);
-        assert_eq!(transpose_plus_one.as_byte(), 36);
+        let none = Transpose::new(0);  // no transpose
+        assert_eq!(none.as_byte(), 24);
+
+        let plus_two = Transpose::new(24);
+        assert_eq!(plus_two.as_byte(), 48)
     }
 }

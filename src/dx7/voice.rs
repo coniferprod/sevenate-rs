@@ -1,5 +1,4 @@
 use std::fmt;
-use log::debug;
 use bit::BitIndex;
 
 use crate::{
@@ -12,7 +11,7 @@ use crate::dx7::{
     Depth,
     Transpose,
     Level,
-    first_different_offset
+    first_different_offset,
 };
 
 use crate::dx7::sysex::SystemExclusiveData;
@@ -70,7 +69,7 @@ impl Voice {
 
         // The operator data is already in reverse order (OP6 first),
         // so just take each chunk and pack it.
-        for i in 0..6 {
+        for _i in 0..6 {
             let op_data = &data[offset .. offset + 21];
             let op_data_packed = Operator::pack(&op_data);
             result.extend(op_data_packed);
@@ -94,7 +93,7 @@ impl Voice {
         offset += 4;
 
         let mut byte116: u8 = data[offset];  // LFO sync
-        byte116.set_bit_range(1..4, data[offset + 1]);  // LFO waveform 
+        byte116.set_bit_range(1..4, data[offset + 1]);  // LFO waveform
         byte116.set_bit_range(4..7, data[offset + 2]);  // pitch mod sens (voice)
         result.push(byte116);
         offset += 3;
@@ -151,7 +150,7 @@ impl Voice {
 }
 
 impl Default for Voice {
-    fn default() -> Self {
+    fn default() -> Voice {
         Voice::new()
     }
 }
@@ -168,7 +167,7 @@ impl SystemExclusiveData for Voice {
                 Operator::from_bytes(&data[0..22])?,  // OP6
             ],
             peg: Envelope::from_bytes(&data[126..134]).expect("valid envelope"),
-            alg: Algorithm::from(data[134]),
+            alg: Algorithm::try_from(data[134]).expect("valid algorithm"),
             feedback: Depth::new(data[135].into()),
             osc_sync: data[136] == 1,
             lfo: Lfo::from_bytes(&data[137..143]).expect("valid LFO"),
@@ -197,13 +196,12 @@ impl SystemExclusiveData for Voice {
         let padded_name = format!("{:<10}", self.name);
         data.extend(padded_name.into_bytes());
 
-        assert_eq!(data.len(), self.data_size());
+        assert_eq!(data.len(), Self::DATA_SIZE);
 
         data
     }
 
-    fn data_size(&self) -> usize { 155 }
-
+    const DATA_SIZE: usize = 155;
 }
 
 impl fmt::Display for Voice {
@@ -231,10 +229,10 @@ Transpose: {}
             self.operators[5],
             self.peg,
             self.alg.value(),
-            self.feedback.value,
+            self.feedback.value(),
             self.osc_sync,
             self.lfo,
-            self.transpose.value)
+            self.transpose.value())
     }
 }
 
@@ -254,10 +252,11 @@ mod tests {
 
     #[test]
     fn test_voice_to_packed_bytes() {
-        let rom1a_data: [u8; 4096] = include!("rom1asyx.in");
+        let data = include_bytes!("rom1a_payload.dat");
 
-        // The first voice in ROM1A ("BRASS 1") is the first 128 bytes
-        let voice_data = &rom1a_data[..128];
+        // The first voice in ROM1A ("BRASS 1") starts at offset 4,
+        // after the SysEx header. It is 128 bytes when packed.
+        let voice_data = &data[4..132];
         let brass1 = make_brass1();
         let brass1_data = Voice::pack(&brass1.to_bytes());
 

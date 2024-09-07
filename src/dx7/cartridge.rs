@@ -12,22 +12,6 @@ pub struct Cartridge {
     pub voices: Vec<Voice>,
 }
 
-impl Cartridge {
-    /*
-    pub fn to_packed_bytes(&self) -> Vec<u8> {
-        let mut data: Vec<u8> = Vec::new();
-
-        for (index, voice) in self.voices.iter().enumerate() {
-            let voice_data = Voice::pack(&voice.to_bytes());
-            debug!("Voice #{} packed data length = {} bytes", index, voice_data.len());
-            data.extend(voice_data);
-        }
-
-        data
-    }
-     */
-}
-
 impl Default for Cartridge {
     fn default() -> Self {
         Cartridge {
@@ -63,7 +47,7 @@ impl SystemExclusiveData for Cartridge {
         data
     }
 
-    fn data_size(&self) -> usize { 4096 }
+    const DATA_SIZE: usize = 4096;
 }
 
 #[cfg(test)]

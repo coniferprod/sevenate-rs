@@ -10,25 +10,23 @@ use crate::dx7::sysex::SystemExclusiveData;
 
 /// Envelope rate (0...99)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Rate {
-    value: i32
-}
+pub struct Rate(i32);
 
 impl Rate {
     pub fn as_byte(&self) -> u8 {
-        self.value as u8
+        self.0 as u8
     }
 }
 
 impl Default for Rate {
     fn default() -> Rate {
-        Rate::new(0)
+        Rate::new(Rate::DEFAULT)
     }
 }
 
 impl fmt::Display for Rate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -39,28 +37,29 @@ impl From<u8> for Rate {
 }
 
 impl Ranged for Rate {
+    const MIN: i32 = 0;
+    const MAX: i32 = 99;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Rate::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { 0 }
-    fn last() -> i32 { 99 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Rate::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
@@ -122,10 +121,10 @@ impl Envelope {
     }
 
     /// Makes a new EG with random rates and levels.
-    pub fn new_random() -> Self {
+    pub fn random() -> Self {
         Self {
-            rates: [Rate::random_value(), Rate::random_value(), Rate::random_value(), Rate::random_value()],
-            levels: [Level::random_value(), Level::random_value(), Level::random_value(), Level::random_value()],
+            rates: [Rate::random(), Rate::random(), Rate::random(), Rate::random()],
+            levels: [Level::random(), Level::random(), Level::random(), Level::random()],
         }
     }
 }
@@ -133,10 +132,10 @@ impl Envelope {
 impl fmt::Display for Envelope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "R1={} L1={} R2={} L2={} R3={} L3={} R4={} L4={}",
-            self.rates[0].value, self.levels[0].value,
-            self.rates[1].value, self.levels[1].value,
-            self.rates[2].value, self.levels[2].value,
-            self.rates[3].value, self.levels[3].value)
+            self.rates[0].value(), self.levels[0].value(),
+            self.rates[1].value(), self.levels[1].value(),
+            self.rates[2].value(), self.levels[2].value(),
+            self.rates[3].value(), self.levels[3].value())
     }
 }
 
@@ -163,5 +162,5 @@ impl SystemExclusiveData for Envelope {
         ]
     }
 
-    fn data_size(&self) -> usize { 8 }
+    const DATA_SIZE: usize = 8;
 }

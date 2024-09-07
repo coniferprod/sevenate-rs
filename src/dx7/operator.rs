@@ -109,19 +109,17 @@ impl From<u8> for ScalingCurve {
 
 /// Key (MIDI note).
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Key {
-    value: i32
-}
+pub struct Key(i32);
 
 impl Key {
     pub fn as_byte(&self) -> u8 {
-        self.value as u8
+        self.0 as u8
     }
 
     pub fn name(&self) -> String {
         let notes = [ "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" ];
-        let octave: usize = self.value as usize / 12 + 1;
-        let name = notes[(self.value % 12) as usize];
+        let octave: usize = self.value() as usize / 12 + 1;
+        let name = notes[(self.value() % 12) as usize];
         format!("{}{}", name, octave)
     }
 }
@@ -145,28 +143,29 @@ impl From<u8> for Key {
 }
 
 impl Ranged for Key {
+    const MIN: i32 = 0;
+    const MAX: i32 = 99;
+    const DEFAULT: i32 = 0;
+
     fn new(value: i32) -> Self {
-        if Key::is_valid(value) {
-            Self { value }
+        if Self::is_valid(value) {
+            Self(value)
         }
         else {
             panic!("expected value in range {}...{}, got {}",
-                Self::first(), Self::last(), value);
+                Self::MIN, Self::MAX, value);
         }
     }
 
-    fn value(&self) -> i32 { self.value }
-
-    fn first() -> i32 { 0 }
-    fn last() -> i32 { 99 }
+    fn value(&self) -> i32 { self.0 }
 
     fn is_valid(value: i32) -> bool {
-        value >= Self::first() && value <= Self::last()
+        value >= Self::MIN && value <= Self::MAX
     }
 
-    fn random_value() -> Self {
+    fn random() -> Self {
         let mut rng = rand::thread_rng();
-        Key::new(rng.gen_range(Self::first()..=Self::last()))
+        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
@@ -223,7 +222,7 @@ impl SystemExclusiveData for KeyboardLevelScaling {
         ]
     }
 
-    fn data_size(&self) -> usize { 5 }
+    const DATA_SIZE: usize = 5;
 }
 
 /// Operator mode.
@@ -266,14 +265,14 @@ impl Operator {
     }
 
     /// Makes a new random operator.
-    pub fn new_random() -> Self {
+    pub fn random() -> Self {
         Operator {
-            eg: Envelope::new_random(),
+            eg: Envelope::random(),
             kbd_level_scaling: KeyboardLevelScaling::new(),
             kbd_rate_scaling: Depth::new(0),
             amp_mod_sens: Sensitivity::new(0),
             key_vel_sens: Depth::new(0),
-            output_level: Level::random_value(),
+            output_level: Level::random(),
             mode: OperatorMode::Ratio,
             coarse: Coarse::new(1),
             fine: Level::new(0),
@@ -287,21 +286,22 @@ impl Operator {
         let mut result: Vec<u8> = Vec::new();
 
         // EG data is unpacked
-        result.extend(data[0..8].to_vec());  
+        result.extend(data[0..8].to_vec());
 
+        // KLS
         result.push(data[8]);  // BP
         result.push(data[9]);  // LD
         result.push(data[10]); // RD
 
-        result.push(data[11] >> 4);   // LC
-        result.push(data[11] & 0x0f); // RC
+        result.push(data[11].bit_range(0..2));  // LC
+        result.push(data[11].bit_range(2..4));  // RC
 
         result.push(data[12].bit_range(0..3));  // RS
         result.push(data[13].bit_range(0..2));  // AMS
         result.push(data[13].bit_range(2..5));  // KVS
 
         result.push(data[14]);  // output level
-        result.push(if data[15].bit(0) { 1 } else { 0 });  // op mode
+        result.push(if data[15].bit(0) { 1 } else { 0 });  // osc mode
         result.push(data[15].bit_range(1..6)); // coarse
         result.push(data[16]); // fine
         result.push(data[12].bit_range(3..7)); // detune
@@ -374,7 +374,7 @@ impl SystemExclusiveData for Operator {
         data
     }
 
-    fn data_size(&self) -> usize { 21 }
+    const DATA_SIZE: usize = 21;
 }
 
 impl fmt::Display for Operator {
@@ -387,14 +387,14 @@ Coarse = {}, Fine = {}, Detune = {}
 ",
             self.eg,
             self.kbd_level_scaling,
-            self.kbd_rate_scaling.value,
+            self.kbd_rate_scaling.value(),
             self.amp_mod_sens,
-            self.key_vel_sens.value,
-            self.output_level.value,
+            self.key_vel_sens.value(),
+            self.output_level.value(),
             self.mode,
-            self.coarse.value,
-            self.fine.value,
-            self.detune.value)
+            self.coarse.value(),
+            self.fine.value(),
+            self.detune.value())
     }
 }
 
@@ -404,18 +404,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_from_bytes() {
-        let data = vec![
-            0x03u8, 0x47, 0x00, 0x03, 0x00, 0x07, 0x63, 0x23,  // rate and level
-            0x63, 0x57, 0x63, 0x63, 0x63,  // kbd level scaling
-            0x00, 0x00, 0x00,
-            0x11,  // output level
-            0x00,   // osc mode
-            0x00, 0x00, 0x00, // coarse, fine, detune
-        ];
-        assert_eq!(data.len(), 21);
-        _ = Operator::from_bytes(&data).expect("valid operator");
+    fn test_from_packed_bytes() {
+        let all_data = include_bytes!("rom1a_payload.dat");
+
+        // The first voice in ROM1A ("BRASS 1") starts at offset 4,
+        // after the SysEx header.
+        let voice_data = &all_data[4..];
+
+        // The data for its OP6 is first. It is 21 bytes when packed.
+        let packed_op_data = &voice_data[..21];
+
+        let op_data = Operator::unpack(packed_op_data);
+
+        // OP6 rates: 31 63 1c 44
+        // OP6 levels: 62 62 5b 00
+
+        // KLS: 27 36 32 05
+        // - breakpoint = 27H = 39 = C3
+        // - left depth = 36H = 54
+        // - right depth = 32H = 50
+        // - left curve and right curve packed = 05H
+        // Arturia DX7 shows: breakpoint=C3, both curves=-EXP,
+        // left depth = 54, right depth = 50
+
+        // Byte #12: osc detune and rate scaling 3CH = 0111_100B
+        // Detune = 0111B = 7
+        // rate scaling = 100B = 4
+
+        _ = Operator::from_bytes(&op_data).expect("valid operator");
     }
+
+    /*
+    #[test]
+    fn test_from_bytes() {
+    }
+    */
 
     #[test]
     fn test_pack() {

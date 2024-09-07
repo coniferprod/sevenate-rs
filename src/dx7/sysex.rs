@@ -15,7 +15,7 @@ use crate::dx7::{
 pub trait SystemExclusiveData: Sized {
     fn from_bytes(data: &[u8]) -> Result<Self, ParseError>;
     fn to_bytes(&self) -> Vec<u8>;
-    fn data_size(&self) -> usize;
+    const DATA_SIZE: usize;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -66,8 +66,8 @@ pub struct Header {
 impl fmt::Display for Header {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
-            f, 
-            "Format = {}, length = {} bytes", 
+            f,
+            "Format = {}, length = {} bytes",
             self.format, self.byte_count)
     }
 }
@@ -81,7 +81,7 @@ impl SystemExclusiveData for Header {
             return Err(ParseError::InvalidData(1)) // offset of value
         }
         let format = Format::try_from(data[1]).expect("format should be valid");
-        
+
         Ok(Self {
             sub_status: (data[0] >> 4) & 0b00000111,
             channel: MIDIChannel::new(channel),
@@ -115,18 +115,34 @@ impl SystemExclusiveData for Header {
         result
     }
 
-    fn data_size(&self) -> usize { 5 }
+    const DATA_SIZE: usize = 5;
 }
 
-pub fn voice_checksum(data: &[u8]) -> u8 {
-    let mut sum: u32 = 0;
-    for b in data {
-        sum += *b as u32;
-    }
-
-    let mut checksum: u8 = (sum & 0xff) as u8;
-    checksum = !checksum;
+pub fn checksum(data: &[u8]) -> u8 {
+    let sum: u32 = data.iter().fold(0, |a, &b| a.wrapping_add(b as u32));
+    let mut checksum = sum & 0xff;
+    checksum = !checksum + 1;
     checksum &= 0x7f;
-    checksum += 1;
-    checksum
+    checksum as u8
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_checksum() {
+        // Yamaha DX7 original ROM1A sound bank (data only, no SysEx header/terminator
+        // or checksum.)
+        let rom1a_data = include_bytes!("rom1a_payload.dat");
+        let first_index = 4;
+        let last_index = rom1a_data.len() - 2;
+
+        let data = &rom1a_data[first_index..=last_index];
+        assert_eq!(data.len(), 4096);
+
+        // The original checksum is 0x33
+        let cs = checksum(data);
+        assert_eq!(0x33, cs);
+    }
 }

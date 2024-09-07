@@ -48,10 +48,10 @@ impl Lfo {
     /// Makes a new LFO with random settings.
     pub fn new_random() -> Self {
         Self {
-            speed: Level::random_value(),
-            delay: Level::random_value(),
-            pmd: Level::random_value(),
-            amd: Level::random_value(),
+            speed: Level::random(),
+            delay: Level::random(),
+            pmd: Level::random(),
+            amd: Level::random(),
             sync: true,
             waveform: LfoWaveform::Triangle,
         }
@@ -74,10 +74,10 @@ impl Lfo {
 impl fmt::Display for Lfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "speed = {}, delay = {}, PMD = {}, AMD = {}, sync = {}, waveform = {:?}",
-            self.speed.value,
-            self.delay.value,
-            self.pmd.value,
-            self.amd.value,
+            self.speed.value(),
+            self.delay.value(),
+            self.pmd.value(),
+            self.amd.value(),
             self.sync,
             self.waveform)
     }
@@ -117,7 +117,5 @@ impl SystemExclusiveData for Lfo {
         ]
     }
 
-    fn data_size(&self) -> usize { 7 }
+    const DATA_SIZE: usize = 7;
 }
-
-
