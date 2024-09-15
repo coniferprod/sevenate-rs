@@ -192,7 +192,7 @@ for the implementor of the trait to define.
 For example, I can define a trait with `MIN`, `MAX`, and `DEFAULT` and related methods
 like this:
 
-    pub trait Ranged2 {
+    pub trait Ranged {
         const MIN: i32;
         const MAX: i32;
         const DEFAULT: i32;
@@ -205,9 +205,9 @@ like this:
 
 Then I make a newtype, and make it implement this trait:
 
-    pub struct Algorithm2(i32);
+    pub struct Algorithm(i32);
 
-    impl Ranged2 for Algorithm2 {
+    impl Ranged for Algorithm {
         const MIN: i32 = 1;
         const MAX: i32 = 32;
         const DEFAULT: i32 = 32;
@@ -235,10 +235,30 @@ Then I make a newtype, and make it implement this trait:
     }
 
 How's that for a subrange type? It is immutable, and other newtypes like this
-are easy to implement. You could also make a Rust macro to generate the code
-for you (something that I haven't tried yet, but am interested in), to avoid
-repetitive code. Essentially the only things that need to change are the name
+are easy to implement. Essentially the only things that need to change are the name
 of the type and the values of the associated consts in the trait implementation.
+
+### The `ranged_impl!` macro
+
+It becomes quite tedious to implement the `Ranged` trait for all the
+required types. The code you need to write can be radically shortened
+by defining a Rust macro to handle the grunt work.
+
+The `ranged_impl!` macro implements the `Ranged` trait for a given type,
+along with the `Default` and `Display` traits. The default value is simply the
+`DEFAULT` associated constant, while the displayed value is the value wrapped
+by the type.
+
+Remember to install `cargo-expand` if you want to see the result of the
+macro expansion:
+
+    cargo install cargo-expand
+
+Then use the `cargo expand` command.
+
+Alternatively, you can also use Rust Analyzer in Visual Studio Code
+to recursively expand the macro; see the "Expand macro recursively
+at caret" command.
 
 ## Leaning on the `From` trait
 
@@ -248,8 +268,9 @@ However, they often need a little adjustment to get them from the
 used for a voice is 1...32, but it is stored in the SysEx data as a
 value in the range 0...31. Many other parameters are expressed similarly.
 
-I'm using a `From<u8>` trait implementation on the `Algorithm` newtype to convert
-from a System Excusive data byte to the actual algorithm value:
+The `From<u8>` trait implementation on the `Algorithm` newtype is used to convert
+from a System Exclusive data byte representing the algorithm (0...31)
+to the actual algorithm value (1...32):
 
     impl From<u8> for Algorithm {
         fn from(item: u8) -> Self {

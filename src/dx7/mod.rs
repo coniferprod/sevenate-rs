@@ -4,7 +4,6 @@ use std::convert::{
     TryFrom
 };
 use rand::Rng;
-use bit::BitIndex;
 
 use crate::{
     Ranged,
@@ -25,11 +24,6 @@ use crate::dx7::envelope::{
     Rate
 };
 
-use crate::dx7::sysex::{
-    SystemExclusiveData,
-    checksum,
-};
-
 use crate::dx7::voice::Voice;
 
 use crate::dx7::lfo::{
@@ -47,37 +41,11 @@ pub mod sysex;
 /// MIDI channel (1...16)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct MIDIChannel(i32);
+crate::ranged_impl!(MIDIChannel, 1, 16, 1);
 
 impl MIDIChannel {
     pub fn as_byte(&self) -> u8 {
         (self.0 - 1) as u8  // adjust to 0...15 for SysEx
-    }
-}
-
-impl Ranged for MIDIChannel {
-    const MIN: i32 = 1;
-    const MAX: i32 = 16;
-    const DEFAULT: i32 = Self::MIN;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
@@ -97,56 +65,22 @@ impl TryFrom<u8> for MIDIChannel {
     }
 }
 
+/// ASCII art diagrams for the DX7 algorithms.
 pub static ALGORITHM_DIAGRAMS: [&str; 32] = include!("algorithms.in");
 
 /// Algorithm (1...32)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Algorithm(i32);
 
-impl Ranged for Algorithm {
-    const MIN: i32 = 1;
-    const MAX: i32 = 32;
-    const DEFAULT: i32 = 32;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
-    }
-}
-
-impl Default for Algorithm {
-    fn default() -> Self {
-        Self::new(Self::DEFAULT)
-    }
-}
+crate::ranged_impl!(Algorithm, 1, 32, 32);
 
 impl Algorithm {
     pub fn as_byte(&self) -> u8 {
         (self.0 - 1) as u8  // adjust to 0...31 for SysEx
     }
-}
 
-impl fmt::Display for Algorithm {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "#{}:\n{}",
-            self.0,
-            ALGORITHM_DIAGRAMS[(self.0 as usize) - 1])
+    pub fn algorithm_display(&self) -> String {
+        String::from(ALGORITHM_DIAGRAMS[(self.value() as usize) - 1])
     }
 }
 
@@ -168,21 +102,11 @@ impl TryFrom<u8> for Algorithm {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Detune(i32);
 
+crate::ranged_impl!(Detune, -7, 7, 0);
+
 impl Detune {
     pub fn as_byte(&self) -> u8 {
         (self.0 + 7) as u8  // adjust for SysEx
-    }
-}
-
-impl Default for Detune {
-    fn default() -> Detune {
-        Detune::new(Detune::DEFAULT)
-    }
-}
-
-impl fmt::Display for Detune {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
@@ -192,52 +116,15 @@ impl From<u8> for Detune {
     }
 }
 
-impl Ranged for Detune {
-    const MIN: i32 = -7;
-    const MAX: i32 = 7;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
-    }
-}
-
 /// Coarse (0...31).
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Coarse(i32);
 
+crate::ranged_impl!(Coarse, 0, 31, 0);
+
 impl Coarse {
     pub fn as_byte(&self) -> u8 {
         self.0 as u8
-    }
-}
-
-impl Default for Coarse {
-    fn default() -> Coarse {
-        Coarse::new(Coarse::DEFAULT)
-    }
-}
-
-impl fmt::Display for Coarse {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
@@ -247,38 +134,13 @@ impl From<u8> for Coarse {
     }
 }
 
-impl Ranged for Coarse {
-    const MIN: i32 = 0;
-    const MAX: i32 = 31;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
-    }
-}
-
 /// Depth (0...7) for keyboard rate scaling,
 /// key velocity sensitivity, feedback,
 /// pitch mod sensitivity.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Depth(i32);
+
+crate::ranged_impl!(Depth, 0, 7, 0);
 
 impl Depth {
     pub fn as_byte(&self) -> u8 {
@@ -286,59 +148,16 @@ impl Depth {
     }
 }
 
-impl Ranged for Depth {
-    const MIN: i32 = 0;
-    const MAX: i32 = 7;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
-    }
-}
-
-impl Default for Depth {
-    fn default() -> Depth {
-        Depth::new(Depth::DEFAULT)
-    }
-}
-
 /// Key transpose in semitones (-24...24).
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Transpose(i32);
+
+crate::ranged_impl!(Transpose, -24, 24, 0);
 
 impl Transpose {
     pub fn as_byte(&self) -> u8 {
         // Convert to the range 0...48
         (self.0 + 24) as u8
-    }
-}
-
-impl Default for Transpose {
-    fn default() -> Transpose {
-        Transpose::new(Transpose::DEFAULT)
-    }
-}
-
-impl fmt::Display for Transpose {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
@@ -352,52 +171,15 @@ impl From<u8> for Transpose {
     }
 }
 
-impl Ranged for Transpose {
-    const MIN: i32 = -24;
-    const MAX: i32 = 24;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
-    }
-}
-
 /// Amplitude modulation sensitivity (0...3)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Sensitivity(i32);
 
+crate::ranged_impl!(Sensitivity, 0, 3, 0);
+
 impl Sensitivity {
     pub fn as_byte(&self) -> u8 {
         self.0 as u8
-    }
-}
-
-impl Default for Sensitivity {
-    fn default() -> Sensitivity {
-        Sensitivity::new(Sensitivity::DEFAULT)
-    }
-}
-
-impl fmt::Display for Sensitivity {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
@@ -407,36 +189,11 @@ impl From<u8> for Sensitivity {
     }
 }
 
-impl Ranged for Sensitivity {
-    const MIN: i32 = 0;
-    const MAX: i32 = 3;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
-    }
-}
-
 /// Envelope level (or operator output level) (0...99)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Level(i32);
+
+crate::ranged_impl!(Level, 0, 99, 0);
 
 impl Level {
     pub fn as_byte(&self) -> u8 {
@@ -444,48 +201,9 @@ impl Level {
     }
 }
 
-impl Default for Level {
-    fn default() -> Level {
-        Level::new(0)
-    }
-}
-
-impl fmt::Display for Level {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl From<u8> for Level {
     fn from(item: u8) -> Self {
         Level::new(item as i32)
-    }
-}
-
-impl Ranged for Level {
-    const MIN: i32 = 0;
-    const MAX: i32 = 99;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 
