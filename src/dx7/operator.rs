@@ -2,6 +2,8 @@ use std::fmt;
 use bit::BitIndex;
 use rand::Rng;
 
+use dbg_hex::dbg_hex;
+
 use crate::ParseError;
 
 use crate::dx7::{
@@ -341,17 +343,41 @@ impl Operator {
 impl SystemExclusiveData for Operator {
     /// Makes a new operator from SysEx bytes.
     fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
+        let eg = Envelope::from_bytes(&data[0..8])?;
+        dbg!(&data[0..8]);
+        println!("EG = {}", eg);
+
+        dbg!(&data[8..13]);
+        let kbd_level_scaling = KeyboardLevelScaling::from_bytes(&data[8..13])?;
+        println!("KLS = {}", kbd_level_scaling);
+
+        let kbd_rate_scaling = Depth::new(data[13].into());
+        dbg!(kbd_rate_scaling);
+
+        let amp_mod_sens = Sensitivity::new(data[14].into());
+        dbg!(amp_mod_sens);
+
+        let key_vel_sens = Depth::new(data[15].into());
+        let output_level = Level::new(data[16].into());
+        let mode = if data[17] == 0b1 { OperatorMode::Fixed } else { OperatorMode::Ratio };
+        let coarse = Coarse::new(data[18].into());
+        let fine = Level::new(data[19].into());
+
+        dbg!(data[20]);
+        //let detune = Detune::from(data[20]);
+        let detune = Detune::new(data[20] as i32 - 7);
+
         Ok(Self {
-            eg: Envelope::from_bytes(&data[0..8])?,
-            kbd_level_scaling: KeyboardLevelScaling::from_bytes(&data[8..13])?,
-            kbd_rate_scaling: Depth::new(data[13].into()),
-            amp_mod_sens: Sensitivity::new(data[14].into()),
-            key_vel_sens: Depth::new(data[15].into()),
-            output_level: Level::new(data[16].into()),
-            mode: if data[17] == 0b1 { OperatorMode::Fixed } else { OperatorMode::Ratio },
-            coarse: Coarse::new(data[18].into()),
-            fine: Level::new(data[19].into()),
-            detune: Detune::from(data[20]),
+            eg,
+            kbd_level_scaling,
+            kbd_rate_scaling,
+            amp_mod_sens,
+            key_vel_sens,
+            output_level,
+            mode,
+            coarse,
+            fine,
+            detune,
         })
     }
 

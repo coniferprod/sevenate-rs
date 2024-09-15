@@ -285,3 +285,57 @@ In the SysEx data, the value zero denotes -7, while the value 14 is +7:
     -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4 +5 +6 +7
 
 To get from the SysEx data byte to the actual value you need to subtract 7.
+
+## Dissection of a DX7 patch
+
+The SysEx file for an individual voice is 163 bytes:
+
+    * Six bytes for the header (F0 43 00 00 01 1B)
+    * The actual voice payload (156 bytes)
+    * One byte for the SysEx terminator (F7)
+
+Here is the content of the payload of first voice in ROM1A, namely "BRASS  1 ".
+
+Operator data is 6 * 21 = 126 bytes (0...125).
+
+0..20: operator 6
+31 63 1C 44 62 62 5B 00
+27 36 32 01 01 04 00 02
+52 00 01 00 07
+
+21..41: operator 5
+4D 24 29 47 63 62 62 00
+27 00 00 03 03 00 00 02
+62 00 01 00 08
+
+42...62: op4
+4D 24 29 47 63 62 62 00
+27 00 00 03 03 00 00 02
+63 00 01 00 07
+
+63..83: op3
+4D 4C 52 47 63 62 62 00
+27 00 00 03 03 00 00 02
+63 00 01 00 05
+
+84..104: op2
+3E 33 1D 47 52 5F 60 00
+1B 00 07 03 01 00 00 00
+56 00 00 00 0E
+
+105..125: op1
+48 4C 63 47 63 58 60 00
+27 00 0E 03 03 00 00 00
+62 00 00 00 0E
+
+PEG
+126: 54 5F 5F 3C 32 32 32 32
+
+134: algorithm 15H = 21 = #22
+135: feedback 07
+136: osc sync 01
+137: LFO: 25 00 05 00 00 04
+143: 03
+144: 18
+145: name = 42 52 41 53 53 20 20 20 31 20
+155: 2BH = 101011 = checksum

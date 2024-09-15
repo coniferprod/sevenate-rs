@@ -1,6 +1,8 @@
 use std::fmt;
 use bit::BitIndex;
 
+use dbg_hex::dbg_hex;
+
 use crate::{
     ParseError,
     Ranged,
@@ -125,10 +127,13 @@ impl Voice {
         result.extend(&data[offset .. offset + 8]);  // 4xrate + 4xlevel
         offset += 8;
 
+        assert_eq!(offset, 110);
+        dbg_hex!(data[110]);
         result.push(data[offset]);  // algorithm
         offset += 1;
 
-        result.push(data[offset].bit_range(0..5)); // feedback
+        dbg_hex!(data[offset].bit_range(0..3));
+        result.push(data[offset].bit_range(0..3)); // feedback
         result.push(if data[offset].bit(3) { 1 } else { 0 }); // osc sync
         offset += 1;
 
@@ -157,23 +162,60 @@ impl Default for Voice {
 
 impl SystemExclusiveData for Voice {
     fn from_bytes(data: &[u8]) -> Result<Voice, ParseError> {
+        dbg_hex!(data);
+
+        //dbg!(&data[0..21]);
+        let op6 = Operator::from_bytes(&data[0..21])?;
+
+        //dbg!(&data[21..42]);
+        let op5 = Operator::from_bytes(&data[21..42])?;
+
+        //dbg!(&data[42..63]);
+        let op4 = Operator::from_bytes(&data[42..63])?;
+
+        //dbg!(&data[63..84]);
+        let op3 = Operator::from_bytes(&data[63..84])?;
+
+        //dbg!(&data[84..105]);
+        let op2 = Operator::from_bytes(&data[84..105])?;
+
+        //dbg!(&data[105..126]);
+        let op1 = Operator::from_bytes(&data[105..126])?;
+
+        dbg!(&data[126..134]);
+        let peg = Envelope::from_bytes(&data[126..134])?;
+
+        dbg!(data[134]);
+        let alg = Algorithm::new(data[134] as i32 - 1);
+
+        dbg_hex!(data[135]);
+        let feedback = Depth::new(data[135].into());
+
+        dbg_hex!(data[144]);
+        //let transpose = Transpose::from(data[144]);
+        let transpose = Transpose::new(data[144] as i32 - 24);
+
+        dbg_hex!(&data[145..155]);
+        let name = String::from_utf8(data[145..155].to_vec()).unwrap();
+
+
         Ok(Voice {
             operators: [ // NOTE: reverse order!
-                Operator::from_bytes(&data[105..127])?,  // OP1
-                Operator::from_bytes(&data[84..106])?, // OP2
-                Operator::from_bytes(&data[63..85])?,  // OP3
-                Operator::from_bytes(&data[42..64])?,  // OP4
-                Operator::from_bytes(&data[21..43])?, // OP5
-                Operator::from_bytes(&data[0..22])?,  // OP6
+                op1,
+                op2,
+                op3,
+                op4,
+                op5,
+                op6,
             ],
-            peg: Envelope::from_bytes(&data[126..134]).expect("valid envelope"),
-            alg: Algorithm::try_from(data[134]).expect("valid algorithm"),
-            feedback: Depth::new(data[135].into()),
+            peg,
+            alg,
+            feedback,
             osc_sync: data[136] == 1,
-            lfo: Lfo::from_bytes(&data[137..143]).expect("valid LFO"),
+            lfo: Lfo::from_bytes(&data[137..143])?,
             pitch_mod_sens: Depth::new(data[143].into()),
-            transpose: Transpose::from(data[144]),
-            name: String::from_utf8(data[145..155].to_vec()).unwrap(),
+            transpose,
+            name,
         })
     }
 

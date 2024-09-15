@@ -115,7 +115,7 @@ impl SystemExclusiveData for Header {
         result
     }
 
-    const DATA_SIZE: usize = 5;
+    const DATA_SIZE: usize = 4;
 }
 
 pub fn checksum(data: &[u8]) -> u8 {
