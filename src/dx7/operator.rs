@@ -344,18 +344,20 @@ impl SystemExclusiveData for Operator {
     /// Makes a new operator from SysEx bytes.
     fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
         let eg = Envelope::from_bytes(&data[0..8])?;
-        dbg!(&data[0..8]);
-        println!("EG = {}", eg);
+        //dbg!(&data[0..8]);
+        //println!("EG = {}", eg);
 
-        dbg!(&data[8..13]);
+        //dbg!(&data[8..13]);
         let kbd_level_scaling = KeyboardLevelScaling::from_bytes(&data[8..13])?;
-        println!("KLS = {}", kbd_level_scaling);
+        //println!("KLS = {}", kbd_level_scaling);
 
+        //dbg!(data[13]);
         let kbd_rate_scaling = Depth::new(data[13].into());
-        dbg!(kbd_rate_scaling);
+        //dbg!(kbd_rate_scaling);
 
+        //dbg!(data[14]);
         let amp_mod_sens = Sensitivity::new(data[14].into());
-        dbg!(amp_mod_sens);
+        //dbg!(amp_mod_sens);
 
         let key_vel_sens = Depth::new(data[15].into());
         let output_level = Level::new(data[16].into());
@@ -363,7 +365,7 @@ impl SystemExclusiveData for Operator {
         let coarse = Coarse::new(data[18].into());
         let fine = Level::new(data[19].into());
 
-        dbg!(data[20]);
+        //dbg!(data[20]);
         //let detune = Detune::from(data[20]);
         let detune = Detune::new(data[20] as i32 - 7);
 

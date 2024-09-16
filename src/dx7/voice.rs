@@ -124,16 +124,19 @@ impl Voice {
         // Now offset should be at the start of the pitch EG.
         assert_eq!(offset, 102);
 
-        result.extend(&data[offset .. offset + 8]);  // 4xrate + 4xlevel
+        result.extend(&data[offset .. offset + 8]);  // PEG = 4xrate + 4xlevel
         offset += 8;
 
+        // Algorithm
         assert_eq!(offset, 110);
-        dbg_hex!(data[110]);
-        result.push(data[offset]);  // algorithm
+        let alg = data[offset];
+        //dbg_hex!(alg);
+        result.push(alg);
         offset += 1;
 
-        dbg_hex!(data[offset].bit_range(0..3));
-        result.push(data[offset].bit_range(0..3)); // feedback
+        let feedback = data[offset].bit_range(0..3);
+        //dbg_hex!(feedback);
+        result.push(feedback); // feedback
         result.push(if data[offset].bit(3) { 1 } else { 0 }); // osc sync
         offset += 1;
 
@@ -145,6 +148,7 @@ impl Voice {
         result.push(data[offset]); // transpose
         offset += 1;
 
+        // Voice name (last 10 characters)
         result.extend(&data[offset .. offset + 10]);
         offset += 10;
 
@@ -162,7 +166,10 @@ impl Default for Voice {
 
 impl SystemExclusiveData for Voice {
     fn from_bytes(data: &[u8]) -> Result<Voice, ParseError> {
-        dbg_hex!(data);
+        //dbg_hex!(data);
+
+        // Note that the operator data is in reverse order:
+        // OP6 is first, OP1 is last.
 
         //dbg!(&data[0..21]);
         let op6 = Operator::from_bytes(&data[0..21])?;
@@ -182,25 +189,24 @@ impl SystemExclusiveData for Voice {
         //dbg!(&data[105..126]);
         let op1 = Operator::from_bytes(&data[105..126])?;
 
-        dbg!(&data[126..134]);
+        //dbg!(&data[126..134]);
         let peg = Envelope::from_bytes(&data[126..134])?;
 
-        dbg!(data[134]);
-        let alg = Algorithm::new(data[134] as i32 - 1);
+        //dbg_hex!(data[134]);
+        let alg = Algorithm::new(data[134] as i32 + 1);  // 0...31 to 1...32
 
-        dbg_hex!(data[135]);
+        //dbg_hex!(data[135]);
         let feedback = Depth::new(data[135].into());
 
-        dbg_hex!(data[144]);
+        //dbg_hex!(data[144]);
         //let transpose = Transpose::from(data[144]);
         let transpose = Transpose::new(data[144] as i32 - 24);
 
-        dbg_hex!(&data[145..155]);
+        //dbg_hex!(&data[145..155]);
         let name = String::from_utf8(data[145..155].to_vec()).unwrap();
 
-
         Ok(Voice {
-            operators: [ // NOTE: reverse order!
+            operators: [
                 op1,
                 op2,
                 op3,

@@ -24,7 +24,8 @@ impl SystemExclusiveData for Cartridge {
     fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
         let mut offset = 0;
         let mut voices = Vec::<Voice>::new();
-        for _ in 0..VOICE_COUNT {
+        for i in 0..VOICE_COUNT {
+            //println!("VOICE {}", i + 1);
             let packed_voice_data = &data[offset..offset + 128];
             let voice_data = Voice::unpack(packed_voice_data);
             let voice = Voice::from_bytes(&voice_data).expect("valid voice data");
