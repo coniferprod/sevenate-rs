@@ -1,7 +1,9 @@
 use std::fmt;
-use bit::BitIndex;
+use std::collections::HashSet;
 
+use bit::BitIndex;
 use dbg_hex::dbg_hex;
+use rand::seq::SliceRandom;
 
 use crate::{
     ParseError,
@@ -25,6 +27,56 @@ pub const OPERATOR_COUNT: usize = 6;
 pub const VOICE_PACKED_SIZE: usize = 128;
 pub const VOICE_SIZE: usize = 155;
 
+/// Voice name.
+#[derive(Debug, Clone)]
+pub struct VoiceName {
+    value: String,
+}
+
+impl VoiceName {
+    pub fn new(name: &str) -> Self {
+        VoiceName { value: String::from(name) }
+    }
+
+    pub fn from_string(name: String) -> Self {
+        VoiceName { value: name.clone() }
+    }
+
+    pub fn random() -> Self {
+        // Five two-character syllables
+        VoiceName { value: Self::make_random_phrase(5) }
+    }
+
+    // Makes a random syllable from a consonant and a vowel.
+    // The result is not linguistically correct.
+    fn make_random_syllable() -> String {
+        // Japanese vowels and consonants. See https://www.lingvozone.com/Japanese.
+        let consonants = vec![
+            'k', 's', 't', 'n', 'h', 'm', 'y', 'r',
+            'w', 'g', 'z', 'd', 'b', 'p'
+        ];
+        let vowels = vec!['a', 'i', 'u', 'e', 'o'];
+        let mut rng = rand::thread_rng();
+        let consonant = consonants.choose(&mut rng).unwrap();
+        let vowel = vowels.choose(&mut rng).unwrap();
+        format!("{}{}", consonant, vowel)
+    }
+
+    // Makes a random phrase out of `syllable_count` syllables.
+    // The result is not linguistically correct.
+    fn make_random_phrase(syllable_count: u32) -> String {
+        let mut result = String::new();
+        for _ in 1..=syllable_count {
+            result.push_str(&Self::make_random_syllable());
+        }
+        result
+    }
+
+    pub fn value(&self) -> String {
+        self.value.to_uppercase().clone()
+    }
+}
+
 /// A DX7 voice.
 #[derive(Debug, Clone)]
 pub struct Voice {
@@ -36,7 +88,7 @@ pub struct Voice {
     pub lfo: Lfo,
     pub pitch_mod_sens: Depth,  // pitch mode sensitivity 0 ~7 (for all operators)
     pub transpose: Transpose,  // number of octaves to transpose (-2...+2) (12 = C2 (value is 0~48 in SysEx))
-    pub name: String,
+    pub name: VoiceName,
 }
 
 impl Voice {
@@ -61,7 +113,7 @@ impl Voice {
             lfo: Lfo::new(),
             pitch_mod_sens: Depth::new(0),
             transpose: Transpose::new(0),
-            name: "INIT VOICE".to_string(),
+            name: VoiceName::new("INIT VOICE"),
         }
     }
 
@@ -207,7 +259,7 @@ impl SystemExclusiveData for Voice {
         let transpose = Transpose::new(data[144] as i32 - 24);
 
         //dbg_hex!(&data[145..155]);
-        let name = String::from_utf8(data[145..155].to_vec()).unwrap();
+        let name = VoiceName::from_string(String::from_utf8(data[145..155].to_vec()).unwrap());
 
         Ok(Voice {
             operators: [
@@ -245,7 +297,7 @@ impl SystemExclusiveData for Voice {
         data.push(self.pitch_mod_sens.as_byte());
         data.push(self.transpose.as_byte());
 
-        let padded_name = format!("{:<10}", self.name);
+        let padded_name = format!("{:<10}", self.name.value());
         data.extend(padded_name.into_bytes());
 
         assert_eq!(data.len(), Self::DATA_SIZE);
@@ -269,7 +321,7 @@ PEG: {}
 ALG: {}, feedback = {}, osc sync = {}
 LFO: {}
 Transpose: {}",
-            self.name,
+            self.name.value(),
             self.operators[0],
             self.operators[1],
             self.operators[2],

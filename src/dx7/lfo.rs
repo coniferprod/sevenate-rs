@@ -46,7 +46,7 @@ impl Lfo {
     }
 
     /// Makes a new LFO with random settings.
-    pub fn new_random() -> Self {
+    pub fn random() -> Self {
         Self {
             speed: Level::random(),
             delay: Level::random(),

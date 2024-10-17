@@ -7,8 +7,8 @@ use crate::dx7::voice::{
 };
 use crate::dx7::sysex::SystemExclusiveData;
 
-const VOICE_COUNT: usize = 32;
-const CARTRIDGE_DATA_SIZE: usize = 4096;
+pub const VOICE_COUNT: usize = 32;
+pub const CARTRIDGE_DATA_SIZE: usize = 4096;
 
 /// A DX7 cartridge with 32 voices.
 #[derive(Debug)]

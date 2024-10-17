@@ -24,7 +24,10 @@ use crate::dx7::envelope::{
     Rate
 };
 
-use crate::dx7::voice::Voice;
+use crate::dx7::voice::{
+    Voice,
+    VoiceName
+};
 
 use crate::dx7::lfo::{
     LfoWaveform,
@@ -315,7 +318,7 @@ pub fn make_brass1() -> Voice {
         },
         pitch_mod_sens: Depth::new(3),
         transpose: Transpose::new(0),
-        name: "BRASS   1 ".to_string(),
+        name: VoiceName::new("BRASS   1 "),
     }
 }
 
@@ -369,7 +372,7 @@ pub fn make_init_voice() -> Voice {
         },
         pitch_mod_sens: Depth::new(3),
         transpose: Transpose::new(0),
-        name: "INIT VOICE".to_string(),
+        name: VoiceName::new("INIT VOICE"),
     }
 }
 
