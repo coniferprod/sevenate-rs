@@ -21,7 +21,9 @@ use crate::dx7::operator::Operator;
 use crate::dx7::lfo::Lfo;
 use crate::dx7::envelope::Envelope;
 
-const OPERATOR_COUNT: usize = 6;
+pub const OPERATOR_COUNT: usize = 6;
+pub const VOICE_PACKED_SIZE: usize = 128;
+pub const VOICE_SIZE: usize = 155;
 
 /// A DX7 voice.
 #[derive(Debug, Clone)]
@@ -106,6 +108,7 @@ impl Voice {
         // voice name
         result.extend(&data[offset .. offset + 10]);
 
+        assert_eq!(result.len(), VOICE_PACKED_SIZE);
         result
     }
 
@@ -152,7 +155,8 @@ impl Voice {
         result.extend(&data[offset .. offset + 10]);
         offset += 10;
 
-        assert_eq!(offset, 128);
+        assert_eq!(offset, VOICE_PACKED_SIZE);
+        assert_eq!(result.len(), VOICE_SIZE);
 
         result
     }
@@ -254,9 +258,7 @@ impl SystemExclusiveData for Voice {
 
 impl fmt::Display for Voice {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "==========
-{}
-==========
+        write!(f, "{}
 OP1: {}
 OP2: {}
 OP3: {}
@@ -266,8 +268,7 @@ OP6: {}
 PEG: {}
 ALG: {}, feedback = {}, osc sync = {}
 LFO: {}
-Transpose: {}
-",
+Transpose: {}",
             self.name,
             self.operators[0],
             self.operators[1],

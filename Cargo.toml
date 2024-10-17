@@ -1,11 +1,11 @@
 [package]
 name = "sevenate"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 edition = "2021"
 
 [dependencies]
-log = "0.4.17"
+log = "0.4.22"
 rand = "0.8.5"
 bit = "0.1.1"
 dbg_hex = "0.2.0"

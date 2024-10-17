@@ -164,3 +164,17 @@ impl SystemExclusiveData for Envelope {
 
     const DATA_SIZE: usize = 8;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;  // import the names from outer scope
+
+    #[test]
+    fn test_eg_to_bytes() {
+        let eg = Envelope {
+            rates: [Rate::new(64), Rate::new(64), Rate::new(64), Rate::new(64)],
+            levels: [Level::new(32), Level::new(32), Level::new(32), Level::new(32)]
+        };
+        assert_eq!(eg.to_bytes(), vec![64u8, 64, 64, 64, 32, 32, 32, 32]);
+    }
+}

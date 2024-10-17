@@ -1,10 +1,14 @@
 use log::debug;
 
 use crate::ParseError;
-use crate::dx7::voice::Voice;
+use crate::dx7::voice::{
+    Voice,
+    VOICE_PACKED_SIZE
+};
 use crate::dx7::sysex::SystemExclusiveData;
 
 const VOICE_COUNT: usize = 32;
+const CARTRIDGE_DATA_SIZE: usize = 4096;
 
 /// A DX7 cartridge with 32 voices.
 #[derive(Debug)]
@@ -26,11 +30,11 @@ impl SystemExclusiveData for Cartridge {
         let mut voices = Vec::<Voice>::new();
         for i in 0..VOICE_COUNT {
             //println!("VOICE {}", i + 1);
-            let packed_voice_data = &data[offset..offset + 128];
+            let packed_voice_data = &data[offset..offset + VOICE_PACKED_SIZE];
             let voice_data = Voice::unpack(packed_voice_data);
             let voice = Voice::from_bytes(&voice_data).expect("valid voice data");
             voices.push(voice);
-            offset += 128;
+            offset += VOICE_PACKED_SIZE;
         }
         Ok(Cartridge { voices })
     }
@@ -48,7 +52,7 @@ impl SystemExclusiveData for Cartridge {
         data
     }
 
-    const DATA_SIZE: usize = 4096;
+    const DATA_SIZE: usize = CARTRIDGE_DATA_SIZE;
 }
 
 #[cfg(test)]
@@ -58,6 +62,6 @@ mod tests {
     #[test]
     fn test_cartridge_length() {
         let cartridge = Cartridge::default();
-        assert_eq!(cartridge.to_bytes().len(), 4096);
+        assert_eq!(cartridge.to_bytes().len(), CARTRIDGE_DATA_SIZE);
     }
 }

@@ -396,6 +396,8 @@ pub fn first_different_offset(v1: &[u8], v2: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    use bit::BitIndex;
+
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
@@ -419,15 +421,6 @@ mod tests {
     fn test_valid_new_succeeds() {
         let alg = Algorithm::new(32);
         assert_eq!(alg.value(), 32);
-    }
-
-    #[test]
-    fn test_eg_to_bytes() {
-        let eg = Envelope {
-            rates: [Rate::new(64), Rate::new(64), Rate::new(64), Rate::new(64)],
-            levels: [Level::new(32), Level::new(32), Level::new(32), Level::new(32)]
-        };
-        assert_eq!(eg.to_bytes(), vec![64u8, 64, 64, 64, 32, 32, 32, 32]);
     }
 
     #[test]

@@ -411,8 +411,7 @@ impl fmt::Display for Operator {
 Kbd level scaling: {}, Kbd rate scaling: {}
 Amp mod sens = {}, Key vel sens = {}
 Level = {}, Mode = {:?}
-Coarse = {}, Fine = {}, Detune = {}
-",
+Coarse = {}, Fine = {}, Detune = {}",
             self.eg,
             self.kbd_level_scaling,
             self.kbd_rate_scaling.value(),
@@ -461,12 +460,6 @@ mod tests {
 
         _ = Operator::from_bytes(&op_data).expect("valid operator");
     }
-
-    /*
-    #[test]
-    fn test_from_bytes() {
-    }
-    */
 
     #[test]
     fn test_pack() {
