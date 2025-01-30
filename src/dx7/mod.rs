@@ -17,33 +17,6 @@ pub mod lfo;
 pub mod envelope;
 pub mod sysex;
 
-/// MIDI channel (1...16)
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct MIDIChannel(i32);
-crate::ranged_impl!(MIDIChannel, 1, 16, 1);
-
-impl MIDIChannel {
-    pub fn as_byte(&self) -> u8 {
-        (self.0 - 1) as u8  // adjust to 0...15 for SysEx
-    }
-}
-
-// NOTE: Implementing TryFrom means that TryInto is implemented as well.
-
-impl TryFrom<u8> for MIDIChannel {
-    type Error = &'static str;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let v: i32 = (value + 1).into(); // make into 1...16
-        if MIDIChannel::contains(v) {
-            Ok(MIDIChannel::new(v))
-        }
-        else {
-            Err("Bad MIDI channel value")
-        }
-    }
-}
-
 /// ASCII art diagrams for the DX7 algorithms.
 pub static ALGORITHM_DIAGRAMS: [&str; 32] = include!("algorithms.in");
 
@@ -211,7 +184,6 @@ pub fn first_different_offset(v1: &[u8], v2: &[u8]) -> Option<usize> {
 mod tests {
     use bit::BitIndex;
 
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
     use crate::dx7::operator::*;
     use crate::dx7::lfo::*;
@@ -223,19 +195,6 @@ mod tests {
         // If this succeeds, the range upper bound is not included,
         // i.e. 4..6 means bits 4 and 5.
         assert_eq!(b.bit_range(4..6), 0b11);
-    }
-
-    #[test]
-    #[should_panic(expected = "expected value in range")]
-    fn test_invalid_new_panics() {
-        let alg = Algorithm::new(0);
-        assert_eq!(alg.value(), 0);
-    }
-
-    #[test]
-    fn test_valid_new_succeeds() {
-        let alg = Algorithm::new(32);
-        assert_eq!(alg.value(), 32);
     }
 
     #[test]
