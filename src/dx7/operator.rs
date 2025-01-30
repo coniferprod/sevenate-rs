@@ -109,9 +109,10 @@ impl From<u8> for ScalingCurve {
     }
 }
 
-/// Key (MIDI note).
+/// Key
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Key(i32);
+crate::ranged_impl!(Key, 0, 99, 39);  // note the default!
 
 impl Key {
     pub fn as_byte(&self) -> u8 {
@@ -126,48 +127,9 @@ impl Key {
     }
 }
 
-impl Default for Key {
-    fn default() -> Key {
-        Key::new(39)
-    }
-}
-
-impl fmt::Display for Key {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name())
-    }
-}
-
 impl From<u8> for Key {
     fn from(item: u8) -> Self {
         Key::new(item as i32)
-    }
-}
-
-impl Ranged for Key {
-    const MIN: i32 = 0;
-    const MAX: i32 = 99;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 

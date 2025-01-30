@@ -11,6 +11,7 @@ use crate::dx7::sysex::SystemExclusiveData;
 /// Envelope rate (0...99)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Rate(i32);
+crate::ranged_impl!(Rate, 0, 99, 0);
 
 impl Rate {
     pub fn as_byte(&self) -> u8 {
@@ -18,48 +19,9 @@ impl Rate {
     }
 }
 
-impl Default for Rate {
-    fn default() -> Rate {
-        Rate::new(Rate::DEFAULT)
-    }
-}
-
-impl fmt::Display for Rate {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl From<u8> for Rate {
     fn from(item: u8) -> Self {
         Rate::new(item as i32)
-    }
-}
-
-impl Ranged for Rate {
-    const MIN: i32 = 0;
-    const MAX: i32 = 99;
-    const DEFAULT: i32 = 0;
-
-    fn new(value: i32) -> Self {
-        if Self::is_valid(value) {
-            Self(value)
-        }
-        else {
-            panic!("expected value in range {}...{}, got {}",
-                Self::MIN, Self::MAX, value);
-        }
-    }
-
-    fn value(&self) -> i32 { self.0 }
-
-    fn is_valid(value: i32) -> bool {
-        value >= Self::MIN && value <= Self::MAX
-    }
-
-    fn random() -> Self {
-        let mut rng = rand::thread_rng();
-        Self::new(rng.gen_range(Self::MIN..=Self::MAX))
     }
 }
 

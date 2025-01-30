@@ -59,7 +59,7 @@ impl TryFrom<u8> for MIDIChannel {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let v: i32 = (value + 1).into(); // make into 1...16
-        if MIDIChannel::is_valid(v) {
+        if MIDIChannel::contains(v) {
             Ok(MIDIChannel::new(v))
         }
         else {
@@ -92,7 +92,7 @@ impl TryFrom<u8> for Algorithm {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let v: i32 = (value + 1).into(); // make into 1...32
-        if Algorithm::is_valid(v) {
+        if Algorithm::contains(v) {
             Ok(Algorithm::new(v))
         }
         else {

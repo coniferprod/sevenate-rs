@@ -1,5 +1,4 @@
 use std::fmt;
-use std::collections::HashSet;
 
 use bit::BitIndex;
 use dbg_hex::dbg_hex;
