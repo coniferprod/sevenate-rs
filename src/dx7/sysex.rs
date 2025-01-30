@@ -4,12 +4,39 @@ use std::convert::{
 };
 
 use std::fmt;
+use rand::Rng;
 
 use crate::dx7::{
     ParseError,
-    MIDIChannel,
     Ranged
 };
+
+/// MIDI channel (1...16)
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct MIDIChannel(i32);
+crate::ranged_impl!(MIDIChannel, 1, 16, 1);
+
+impl MIDIChannel {
+    pub fn as_byte(&self) -> u8 {
+        (self.0 - 1) as u8  // adjust to 0...15 for SysEx
+    }
+}
+
+// NOTE: Implementing TryFrom means that TryInto is implemented as well.
+
+impl TryFrom<u8> for MIDIChannel {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        let v: i32 = (value + 1).into(); // make into 1...16
+        if MIDIChannel::contains(v) {
+            Ok(MIDIChannel::new(v))
+        }
+        else {
+            Err("Bad MIDI channel value")
+        }
+    }
+}
 
 /// Parsing and generating MIDI System Exclusive data.
 pub trait SystemExclusiveData: Sized {

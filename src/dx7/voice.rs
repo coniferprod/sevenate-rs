@@ -340,7 +340,118 @@ Transpose: {}",
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-    use crate::dx7::make_brass1;
+    use crate::dx7::*;
+    use crate::dx7::operator::*;
+    use crate::dx7::lfo::*;
+    use crate::dx7::envelope::*;
+
+    /// Makes a new voice based on the "BRASS1" settings in the DX7 manual.
+    pub fn make_brass1() -> Voice {
+        let kbd_level_scaling = KeyboardLevelScaling {
+            breakpoint: Key::new(60 - 21),
+            left: Scaling { depth: Level::new(0), curve: ScalingCurve::lin_pos() },
+            right: Scaling { depth: Level::new(0), curve: ScalingCurve::lin_pos() },
+        };
+
+        // Make one operator and then specify the differences to the others.
+        let op = Operator {
+            key_vel_sens: Depth::new(2),
+            ..Operator::new()
+        };
+
+        let op6 = Operator {
+            eg: Envelope::new_rate_level(
+                [Rate::new(49), Rate::new(99), Rate::new(28), Rate::new(68)],
+                [Level::new(98), Level::new(98), Level::new(91), Level::new(0)]),
+            kbd_level_scaling: KeyboardLevelScaling {
+                left: Scaling { depth: Level::new(54), curve: ScalingCurve::exp_neg() },
+                right: Scaling { depth: Level::new(50), curve: ScalingCurve::exp_neg() },
+                ..kbd_level_scaling
+            },
+            kbd_rate_scaling: Depth::new(4),
+            output_level: Level::new(82),
+            ..op
+        };
+
+        let op5 = Operator {
+            eg: Envelope::new_rate_level(
+                [Rate::new(77), Rate::new(36), Rate::new(41), Rate::new(71)],
+                [Level::new(99), Level::new(98), Level::new(98), Level::new(0)]),
+            kbd_level_scaling,
+            output_level: Level::new(98),
+            detune: Detune::new(1),
+            ..op
+        };
+
+        let op4 = Operator {
+            eg: op5.eg.clone(),
+            kbd_level_scaling,
+            output_level: Level::new(99),
+            ..op
+        };
+
+        let op3 = Operator {
+            eg: Envelope::new_rate_level(
+                [Rate::new(77), Rate::new(76), Rate::new(82), Rate::new(71)],
+                [Level::new(99), Level::new(98), Level::new(98), Level::new(0)]),
+            kbd_level_scaling,
+            output_level: Level::new(99),
+            detune: Detune::new(-2),
+            ..op
+        };
+
+        let op2 = Operator {
+            eg: Envelope::new_rate_level(
+                [Rate::new(62), Rate::new(51), Rate::new(29), Rate::new(71)],
+                [Level::new(82), Level::new(95), Level::new(96), Level::new(0)]),
+            kbd_level_scaling: KeyboardLevelScaling {
+                breakpoint: Key::new(48 - 21),
+                left: Scaling { depth: Level::new(0), curve: ScalingCurve::lin_pos() },
+                right: Scaling { depth: Level::new(7), curve: ScalingCurve::exp_neg() },
+            },
+            key_vel_sens: Depth::new(0),
+            output_level: Level::new(86),
+            coarse: Coarse::default(),
+            detune: Detune::new(7),
+            ..op
+        };
+
+        let op1 = Operator {
+            eg: Envelope::new_rate_level(
+                [Rate::new(72), Rate::new(76), Rate::new(99), Rate::new(71)],
+                [Level::new(99), Level::new(88), Level::new(96), Level::new(0)]),
+            kbd_level_scaling: KeyboardLevelScaling {
+                right: Scaling { depth: Level::new(14), curve: ScalingCurve::lin_pos() },
+                ..kbd_level_scaling
+            },
+            key_vel_sens: Depth::new(0),
+            output_level: Level::new(98),
+            coarse: Coarse::default(),
+            detune: Detune::new(7),
+            ..op
+        };
+
+        Voice {
+            operators: [op1, op2, op3, op4, op5, op6],
+            peg: Envelope::new_rate_level(
+                [Rate::new(84), Rate::new(95), Rate::new(95), Rate::new(60)],
+                [Level::new(50), Level::new(50), Level::new(50), Level::new(50)]),
+            alg: Algorithm::new(22),
+            feedback: Depth::new(7),
+            osc_sync: true,
+            lfo: Lfo {
+                speed: Level::new(37),
+                delay: Level::new(0),
+                pmd: Level::new(5),
+                amd: Level::new(0),
+                sync: false,
+                waveform: LfoWaveform::Sine,
+            },
+            pitch_mod_sens: Depth::new(3),
+            transpose: Transpose::new(0),
+            name: VoiceName::new("BRASS   1 "),
+        }
+    }
 
     #[test]
     fn test_voice_packed_length() {
