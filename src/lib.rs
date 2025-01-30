@@ -1,6 +1,7 @@
 pub mod dx7;
 
 use std::fmt;
+use rand::Rng;
 
 /// Error type for parsing data from MIDI System Exclusive bytes.
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -71,7 +72,12 @@ macro_rules! ranged_impl {
 
         impl Default for $typ {
             fn default() -> Self {
-                Self::new(Self::DEFAULT)
+                if Self::contains(Self::DEFAULT) {
+                    Self::new(Self::DEFAULT)
+                } else {
+                    panic!("default value {} not in range [{}...{}]",
+                        Self::DEFAULT, Self::FIRST, Self::LAST);
+                }
             }
         }
 
@@ -80,5 +86,41 @@ macro_rules! ranged_impl {
                 write!(f, "{}", self.0)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+    pub struct Grade(i32);
+    ranged_impl!(Grade, 0, 5, 0);
+
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+    pub struct BadGrade(i32);
+    ranged_impl!(BadGrade, 0, 5, 10);  // note: default value is outside the range!
+
+    #[test]
+    #[should_panic]
+    fn test_ranged_invalid_panic() {
+        let _ = Grade::new(6);  // value is outside the range
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_ranged_invalid_default_panic() {
+        let _: BadGrade = Default::default();  // default is outside the range
+    }
+
+    #[test]
+    fn test_ranged_valid() {
+        let grade = Grade::new(5);
+        assert_eq!(grade.value(), 5);
+    }
+
+    #[test]
+    fn test_ranged_contains() {
+        assert!(Grade::contains(3));
     }
 }
