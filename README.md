@@ -189,17 +189,17 @@ of traits (is that a tautology or what) that seems to fit the bill.
 You can define associated consts in a trait, but leave their actual values
 for the implementor of the trait to define.
 
-For example, I can define a trait with `MIN`, `MAX`, and `DEFAULT` and related methods
+For example, I can define a trait with `FIRST`, `LAST`, and `DEFAULT` and related methods
 like this:
 
     pub trait Ranged {
-        const MIN: i32;
-        const MAX: i32;
+        const FIRST: i32;
+        const LAST: i32;
         const DEFAULT: i32;
 
         fn new(value: i32) -> Self;
         fn value(&self) -> i32;
-        fn is_valid(value: i32) -> bool;
+        fn contains(value: i32) -> bool;
         fn random_value() -> Self;
     }
 
@@ -208,29 +208,29 @@ Then I make a newtype, and make it implement this trait:
     pub struct Algorithm(i32);
 
     impl Ranged for Algorithm {
-        const MIN: i32 = 1;
-        const MAX: i32 = 32;
+        const FIRST: i32 = 1;
+        const LAST: i32 = 32;
         const DEFAULT: i32 = 32;
 
         fn new(value: i32) -> Self {
-            if Self::is_valid(value) {
+            if Self::contains(value) {
                 Self(value)
             }
             else {
                 panic!("expected value in range {}...{}, got {}",
-                    Self::MIN, Self::MAX, value);
+                    Self::FIRST, Self::LAST, value);
             }
         }
 
         fn value(&self) -> i32 { self.0 }
 
-        fn is_valid(value: i32) -> bool {
-            value >= Self::MIN && value <= Self::MAX
+        fn contains(value: i32) -> bool {
+            value >= Self::FIRST && value <= Self::LAST
         }
 
         fn random_value() -> Self {
             let mut rng = rand::thread_rng();
-            Self::new(rng.gen_range(Self::MIN..=Self::MAX))
+            Self::new(rng.gen_range(Self::FIRST..=Self::LAST))
         }
     }
 
@@ -298,44 +298,44 @@ Here is the content of the payload of first voice in ROM1A, namely "BRASS  1 ".
 
 Operator data is 6 * 21 = 126 bytes (0...125).
 
-0..20: operator 6
-31 63 1C 44 62 62 5B 00
-27 36 32 01 01 04 00 02
-52 00 01 00 07
+    0..20: operator 6
+    31 63 1C 44 62 62 5B 00
+    27 36 32 01 01 04 00 02
+    52 00 01 00 07
 
-21..41: operator 5
-4D 24 29 47 63 62 62 00
-27 00 00 03 03 00 00 02
-62 00 01 00 08
+    21..41: operator 5
+    4D 24 29 47 63 62 62 00
+    27 00 00 03 03 00 00 02
+    62 00 01 00 08
 
-42...62: op4
-4D 24 29 47 63 62 62 00
-27 00 00 03 03 00 00 02
-63 00 01 00 07
+    42...62: op4
+    4D 24 29 47 63 62 62 00
+    27 00 00 03 03 00 00 02
+    63 00 01 00 07
 
-63..83: op3
-4D 4C 52 47 63 62 62 00
-27 00 00 03 03 00 00 02
-63 00 01 00 05
+    63..83: op3
+    4D 4C 52 47 63 62 62 00
+    27 00 00 03 03 00 00 02
+    63 00 01 00 05
 
-84..104: op2
-3E 33 1D 47 52 5F 60 00
-1B 00 07 03 01 00 00 00
-56 00 00 00 0E
+    84..104: op2
+    3E 33 1D 47 52 5F 60 00
+    1B 00 07 03 01 00 00 00
+    56 00 00 00 0E
 
-105..125: op1
-48 4C 63 47 63 58 60 00
-27 00 0E 03 03 00 00 00
-62 00 00 00 0E
+    105..125: op1
+    48 4C 63 47 63 58 60 00
+    27 00 0E 03 03 00 00 00
+    62 00 00 00 0E
 
-PEG
-126: 54 5F 5F 3C 32 32 32 32
+    PEG
+    126: 54 5F 5F 3C 32 32 32 32
 
-134: algorithm 15H = 21 = #22
-135: feedback 07
-136: osc sync 01
-137: LFO: 25 00 05 00 00 04
-143: 03
-144: 18
-145: name = 42 52 41 53 53 20 20 20 31 20
-155: 2BH = 101011 = checksum
+    134: algorithm 15H = 21 = #22
+    135: feedback 07
+    136: osc sync 01
+    137: LFO: 25 00 05 00 00 04
+    143: 03
+    144: 18
+    145: name = 42 52 41 53 53 20 20 20 31 20
+    155: 2BH = 101011 = checksum
