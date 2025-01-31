@@ -103,7 +103,7 @@ impl fmt::Display for Envelope {
 
 impl SystemExclusiveData for Envelope {
     /// Makes an envelope generator from relevant SysEx message bytes.
-    fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
+    fn parse(data: &[u8]) -> Result<Self, ParseError> {
         Ok(Envelope::new_rate_level_int(
             [data[0].into(), data[1].into(), data[2].into(), data[3].into()],
             [data[4].into(), data[5].into(), data[6].into(), data[7].into()]

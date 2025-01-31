@@ -84,7 +84,7 @@ impl fmt::Display for Lfo {
 }
 
 impl SystemExclusiveData for Lfo {
-    fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
+    fn parse(data: &[u8]) -> Result<Self, ParseError> {
         Ok(Lfo {
             speed: Level::new(data[0].into()),
             delay: Level::new(data[1].into()),

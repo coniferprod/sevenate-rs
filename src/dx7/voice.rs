@@ -220,32 +220,32 @@ impl Default for Voice {
 }
 
 impl SystemExclusiveData for Voice {
-    fn from_bytes(data: &[u8]) -> Result<Voice, ParseError> {
+    fn parse(data: &[u8]) -> Result<Voice, ParseError> {
         //dbg_hex!(data);
 
         // Note that the operator data is in reverse order:
         // OP6 is first, OP1 is last.
 
         //dbg!(&data[0..21]);
-        let op6 = Operator::from_bytes(&data[0..21])?;
+        let op6 = Operator::parse(&data[0..21])?;
 
         //dbg!(&data[21..42]);
-        let op5 = Operator::from_bytes(&data[21..42])?;
+        let op5 = Operator::parse(&data[21..42])?;
 
         //dbg!(&data[42..63]);
-        let op4 = Operator::from_bytes(&data[42..63])?;
+        let op4 = Operator::parse(&data[42..63])?;
 
         //dbg!(&data[63..84]);
-        let op3 = Operator::from_bytes(&data[63..84])?;
+        let op3 = Operator::parse(&data[63..84])?;
 
         //dbg!(&data[84..105]);
-        let op2 = Operator::from_bytes(&data[84..105])?;
+        let op2 = Operator::parse(&data[84..105])?;
 
         //dbg!(&data[105..126]);
-        let op1 = Operator::from_bytes(&data[105..126])?;
+        let op1 = Operator::parse(&data[105..126])?;
 
         //dbg!(&data[126..134]);
-        let peg = Envelope::from_bytes(&data[126..134])?;
+        let peg = Envelope::parse(&data[126..134])?;
 
         //dbg_hex!(data[134]);
         let alg = Algorithm::new(data[134] as i32 + 1);  // 0...31 to 1...32
@@ -273,7 +273,7 @@ impl SystemExclusiveData for Voice {
             alg,
             feedback,
             osc_sync: data[136] == 1,
-            lfo: Lfo::from_bytes(&data[137..143])?,
+            lfo: Lfo::parse(&data[137..143])?,
             pitch_mod_sens: Depth::new(data[143].into()),
             transpose,
             name,

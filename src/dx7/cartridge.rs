@@ -25,14 +25,14 @@ impl Default for Cartridge {
 }
 
 impl SystemExclusiveData for Cartridge {
-    fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
+    fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let mut offset = 0;
         let mut voices = Vec::<Voice>::new();
         for i in 0..VOICE_COUNT {
             //println!("VOICE {}", i + 1);
             let packed_voice_data = &data[offset..offset + VOICE_PACKED_SIZE];
             let voice_data = Voice::unpack(packed_voice_data);
-            let voice = Voice::from_bytes(&voice_data).expect("valid voice data");
+            let voice = Voice::parse(&voice_data).expect("valid voice data");
             voices.push(voice);
             offset += VOICE_PACKED_SIZE;
         }

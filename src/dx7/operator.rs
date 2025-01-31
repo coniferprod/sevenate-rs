@@ -167,7 +167,7 @@ impl fmt::Display for KeyboardLevelScaling {
 
 impl SystemExclusiveData for KeyboardLevelScaling {
     /// Makes new keyboard level scaling settings from SysEx bytes.
-    fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
+    fn parse(data: &[u8]) -> Result<Self, ParseError> {
         Ok(Self {
             breakpoint: Key::new(data[0].into()),
             left: Scaling { depth: Level::new(data[1].into()), curve: ScalingCurve::from(data[3]) },
@@ -304,13 +304,13 @@ impl Operator {
 
 impl SystemExclusiveData for Operator {
     /// Makes a new operator from SysEx bytes.
-    fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
-        let eg = Envelope::from_bytes(&data[0..8])?;
+    fn parse(data: &[u8]) -> Result<Self, ParseError> {
+        let eg = Envelope::parse(&data[0..8])?;
         //dbg!(&data[0..8]);
         //println!("EG = {}", eg);
 
         //dbg!(&data[8..13]);
-        let kbd_level_scaling = KeyboardLevelScaling::from_bytes(&data[8..13])?;
+        let kbd_level_scaling = KeyboardLevelScaling::parse(&data[8..13])?;
         //println!("KLS = {}", kbd_level_scaling);
 
         //dbg!(data[13]);
@@ -420,7 +420,7 @@ mod tests {
         // Detune = 0111B = 7
         // rate scaling = 100B = 4
 
-        _ = Operator::from_bytes(&op_data).expect("valid operator");
+        _ = Operator::parse(&op_data).expect("valid operator");
     }
 
     #[test]

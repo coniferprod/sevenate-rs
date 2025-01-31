@@ -40,7 +40,7 @@ impl TryFrom<u8> for MIDIChannel {
 
 /// Parsing and generating MIDI System Exclusive data.
 pub trait SystemExclusiveData: Sized {
-    fn from_bytes(data: &[u8]) -> Result<Self, ParseError>;
+    fn parse(data: &[u8]) -> Result<Self, ParseError>;
     fn to_bytes(&self) -> Vec<u8>;
     const DATA_SIZE: usize;
 }
@@ -100,7 +100,7 @@ impl fmt::Display for Header {
 }
 
 impl SystemExclusiveData for Header {
-    fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
+    fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let byte_count_msb = data[2];
         let byte_count_lsb = data[3];
         let channel = ((data[0] & 0b00001111) + 1) as i32;
