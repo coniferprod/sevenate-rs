@@ -74,10 +74,10 @@ impl Lfo {
 impl fmt::Display for Lfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "speed = {}, delay = {}, PMD = {}, AMD = {}, sync = {}, waveform = {:?}",
-            self.speed.value(),
-            self.delay.value(),
-            self.pmd.value(),
-            self.amd.value(),
+            self.speed,
+            self.delay,
+            self.pmd,
+            self.amd,
             self.sync,
             self.waveform)
     }

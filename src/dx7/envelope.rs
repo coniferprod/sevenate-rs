@@ -94,10 +94,10 @@ impl Envelope {
 impl fmt::Display for Envelope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "R1={} L1={} R2={} L2={} R3={} L3={} R4={} L4={}",
-            self.rates[0].value(), self.levels[0].value(),
-            self.rates[1].value(), self.levels[1].value(),
-            self.rates[2].value(), self.levels[2].value(),
-            self.rates[3].value(), self.levels[3].value())
+            self.rates[0], self.levels[0],
+            self.rates[1], self.levels[1],
+            self.rates[2], self.levels[2],
+            self.rates[3], self.levels[3])
     }
 }
 
@@ -138,5 +138,15 @@ mod tests {
             levels: [Level::new(32), Level::new(32), Level::new(32), Level::new(32)]
         };
         assert_eq!(eg.to_bytes(), vec![64u8, 64, 64, 64, 32, 32, 32, 32]);
+    }
+
+    #[test]
+    fn test_eg_display() {
+        let eg = Envelope {
+            rates: [Rate::new(64), Rate::new(64), Rate::new(64), Rate::new(64)],
+            levels: [Level::new(32), Level::new(32), Level::new(32), Level::new(32)]
+        };
+
+        assert_eq!(eg.to_string(), "R1=64 L1=32 R2=64 L2=32 R3=64 L3=32 R4=64 L4=32");
     }
 }

@@ -376,14 +376,14 @@ Level = {}, Mode = {:?}
 Coarse = {}, Fine = {}, Detune = {}",
             self.eg,
             self.kbd_level_scaling,
-            self.kbd_rate_scaling.value(),
+            self.kbd_rate_scaling,
             self.amp_mod_sens,
-            self.key_vel_sens.value(),
-            self.output_level.value(),
+            self.key_vel_sens,
+            self.output_level,
             self.mode,
-            self.coarse.value(),
-            self.fine.value(),
-            self.detune.value())
+            self.coarse,
+            self.fine,
+            self.detune)
     }
 }
 

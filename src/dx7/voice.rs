@@ -76,6 +76,12 @@ impl VoiceName {
     }
 }
 
+impl fmt::Display for VoiceName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value())
+    }
+}
+
 /// A DX7 voice.
 #[derive(Debug, Clone)]
 pub struct Voice {
@@ -320,7 +326,7 @@ PEG: {}
 ALG: {}, feedback = {}, osc sync = {}
 LFO: {}
 Transpose: {}",
-            self.name.value(),
+            self.name,
             self.operators[0],
             self.operators[1],
             self.operators[2],
@@ -328,11 +334,11 @@ Transpose: {}",
             self.operators[4],
             self.operators[5],
             self.peg,
-            self.alg.value(),
-            self.feedback.value(),
+            self.alg,
+            self.feedback,
             self.osc_sync,
             self.lfo,
-            self.transpose.value())
+            self.transpose)
     }
 }
 
