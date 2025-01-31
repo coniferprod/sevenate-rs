@@ -14,7 +14,7 @@ use crate::dx7::{
     Depth,
     Transpose,
     Level,
-    first_different_offset,
+    compare_slices,
 };
 
 use crate::dx7::sysex::SystemExclusiveData;
@@ -477,7 +477,7 @@ mod tests {
         let brass1 = make_brass1();
         let brass1_data = Voice::pack(&brass1.to_bytes());
 
-        let diff_offset = first_different_offset(voice_data, &brass1_data);
+        let diff_offset = compare_slices(voice_data, &brass1_data);
         match diff_offset {
             Some(offset) => {
                 println!("Vectors differ at offset {:?}", offset);

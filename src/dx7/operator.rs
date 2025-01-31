@@ -13,7 +13,7 @@ use crate::dx7::{
     Detune,
     Sensitivity,
     Coarse,
-    first_different_offset
+    compare_slices
 };
 
 use crate::dx7::envelope::{
@@ -451,7 +451,7 @@ mod tests {
             0x31u8, 0x63, 0x1c, 0x44, 0x62, 0x62, 0x5b, 0x00,
             0x27, 0x36, 0x32, 0x05, 0x3c, 0x08, 0x52, 0x02, 0x00];
 
-        let diff_offset = first_different_offset(&expected_data, &data);
+        let diff_offset = compare_slices(&expected_data, &data);
         match diff_offset {
             Some(offset) => {
                 println!("Vectors differ at offset {:?}", offset);

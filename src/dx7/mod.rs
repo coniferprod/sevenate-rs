@@ -159,10 +159,10 @@ impl From<u8> for Level {
     }
 }
 
-// Finds the first offset where the two vectors differ.
-// Returns None if no differences are found, or if the vectors
+// Finds the first offset where the two slices differ.
+// Returns None if no differences are found, or if the slices
 // are different lengths, Some<usize> with the offset otherwise.
-pub fn first_different_offset(v1: &[u8], v2: &[u8]) -> Option<usize> {
+pub fn compare_slices(v1: &[u8], v2: &[u8]) -> Option<usize> {
     if v1.len() != v2.len() {
         return None;
     }
@@ -172,9 +172,7 @@ pub fn first_different_offset(v1: &[u8], v2: &[u8]) -> Option<usize> {
         if v1[i] != v2[i] {
             return Some(offset);
         }
-        else {
-            offset += 1;
-        }
+        offset += 1;
     }
 
     None
