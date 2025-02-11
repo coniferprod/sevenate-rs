@@ -168,13 +168,19 @@ enforce that any incoming values are in the desired range. Then
 you just hope that there will not be too many of them.
 
 While I like Rust a lot, this kind of thing really leaves me pining for Ada.
-It seems like subrange types are a lost art, and attempts to
-suggest that they be added are met with indifference, possibly because
+It seems like subrange types are something of a lost art, and attempts to
+suggest that they be added are met with indifference (see, for example,
+[this discussion on Rust Internals](https://internals.rust-lang.org/t/more-on-ranged-integers/8614)), possibly because
 it is not quite clear to all what undisputable advances they do have.
+
+For a language that sometimes seems to take pride in using all the best
+bits from computer science (remember Rust originator Graydon Hoare's description
+of it as "technology from the past, come to save the future from itself"),
+the lack of subrange types seems like a curious omission.
 
 Maybe some day I will come up with a better approximation of a subrange
 type in Rust, because they most likely will never be added to the
-language.
+language. (I wrote this before discovering associated consts; see "One more thing" below.)
 
 ### Using the newtype pattern
 
