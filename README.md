@@ -18,7 +18,7 @@ in Rust. Most attempts have resulted in a lot of boilerplate code.
 ### Using const generics
 
 When [const generics](https://doc.rust-lang.org/reference/items/generics.html#const-generics) were stabilized in Rust,
-I tried to implement a trait that has `const` parameters for the start
+I tried to implement a struct that has `const` parameters for the start
 and end of the range. That ended up looking really ugly and was
 cumbersome to use:
 
@@ -30,8 +30,8 @@ cumbersome to use:
         value: i32,
     }
 
-I wanted to make it easy to create values from types that
-implement this trait, so I added a constructor that uses the
+I wanted to make it easy to create values from specializations of
+this generic struct, so I added a constructor that uses the
 range defined for the values:
 
     impl <const MIN: i32, const MAX: i32> RangedInteger<MIN, MAX> {
@@ -64,7 +64,7 @@ range of the type:
         }
     }
 
-When I want to make a type that implements this trait, this is what
+When I want to make a new generic struct, this is what
 I would have to do:
 
     /// Private generic type for the value stored in a `Volume`.
@@ -154,7 +154,7 @@ the value of another variable instead of a constant to a type like this.
 
 So maybe, just maybe, this is yet another example of basically going against the grain.
 
-### Embrace the lack of subrange types
+### Just embrace the lack of subrange types
 
 While I admire the efforts of the crate authors, this is a long
 way from Ada and declarations like
