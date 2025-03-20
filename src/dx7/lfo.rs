@@ -21,6 +21,20 @@ pub enum LfoWaveform {
     SampleAndHold,
 }
 
+impl fmt::Display for LfoWaveform {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match *self {
+            LfoWaveform::Triangle => "triangle",
+            LfoWaveform::SawDown => "saw-down",
+            LfoWaveform::SawUp => "saw-up",
+            LfoWaveform::Square => "square",
+            LfoWaveform::Sine => "sine",
+            LfoWaveform::SampleAndHold => "sample-and-hold",
+        };
+        write!(f, "{}", printable)
+    }
+}
+
 /// LFO.
 #[derive(Debug, Clone, Copy)]
 pub struct Lfo {

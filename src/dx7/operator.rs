@@ -196,6 +196,16 @@ pub enum OperatorMode {
     Fixed,
 }
 
+impl fmt::Display for OperatorMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match *self {
+            OperatorMode::Ratio => "ratio",
+            OperatorMode::Fixed => "fixed",
+        };
+        write!(f, "{}", printable)
+    }
+}
+
 /// Operator.
 #[derive(Debug, Clone, Copy)]
 pub struct Operator {
