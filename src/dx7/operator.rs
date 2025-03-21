@@ -315,8 +315,8 @@ impl Operator {
 impl SystemExclusiveData for Operator {
     /// Makes a new operator from SysEx bytes.
     fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        let eg = Envelope::parse(&data[0..8])?;
         //dbg!(&data[0..8]);
+        let eg = Envelope::parse(&data[0..8])?;
         //println!("EG = {}", eg);
 
         //dbg!(&data[8..13]);

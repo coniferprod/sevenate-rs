@@ -227,12 +227,13 @@ impl Default for Voice {
 
 impl SystemExclusiveData for Voice {
     fn parse(data: &[u8]) -> Result<Voice, ParseError> {
+        //eprintln!("Voice data length = {}", data.len());
         //dbg_hex!(data);
 
         // Note that the operator data is in reverse order:
         // OP6 is first, OP1 is last.
 
-        //dbg!(&data[0..21]);
+        //dbg_hex!(&data[0..21]);
         let op6 = Operator::parse(&data[0..21])?;
 
         //dbg!(&data[21..42]);

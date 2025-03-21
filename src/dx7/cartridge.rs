@@ -1,4 +1,5 @@
 use log::debug;
+use dbg_hex::dbg_hex;
 
 use crate::ParseError;
 use crate::dx7::voice::{
@@ -29,10 +30,15 @@ impl SystemExclusiveData for Cartridge {
         let mut offset = 0;
         let mut voices = Vec::<Voice>::new();
         for i in 0..VOICE_COUNT {
-            //println!("VOICE {}", i + 1);
+            //eprintln!("VOICE {}", i + 1);
             let packed_voice_data = &data[offset..offset + VOICE_PACKED_SIZE];
+            //eprintln!("Packed voice data length = {}", packed_voice_data.len());
+            //dbg_hex!(&packed_voice_data);
             let voice_data = Voice::unpack(packed_voice_data);
+            //eprintln!("Unpacked voice data length = {}", voice_data.len());
+            //dbg_hex!(&voice_data);
             let voice = Voice::parse(&voice_data).expect("valid voice data");
+            //eprintln!("name = {}", voice.name);
             voices.push(voice);
             offset += VOICE_PACKED_SIZE;
         }
