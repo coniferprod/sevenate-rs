@@ -296,7 +296,8 @@ To get from the SysEx data byte to the actual value you need to subtract 7.
 
 The SysEx file for an individual voice is 163 bytes:
 
-    * Six bytes for the header (F0 43 00 00 01 1B)
+    * Two bytes for the SysEx initiator and manufacturer (F0 43)
+    * Four bytes for the header (00 00 01 1B)
     * The actual voice payload (156 bytes)
     * One byte for the SysEx terminator (F7)
 
@@ -345,3 +346,87 @@ Operator data is 6 * 21 = 126 bytes (0...125).
     144: 18
     145: name = 42 52 41 53 53 20 20 20 31 20
     155: 2BH = 101011 = checksum
+
+## Packed voice data
+
+In a cartridge, the voice data is packed to fit into 128 bytes.
+
+Here is the first voice in the ROM1A cartridge ("BRASS  1 "), packed:
+
+    0x31, 0x63, 0x1c, 0x44,  // OP6 EG rates (49 99 28 68)
+    0x62, 0x62, 0x5b, 0x00,  // OP6 EG levels
+    0x27,                    // level scl brkpt
+    0x36,                    // scl left depth
+    0x32,                    // scl right depth
+    0x05,                    // scl left curve and right curve
+    0x3c,                    // osc detune and osc rate scale
+    0x08,                    // key vel sens and amp mod sens
+    0x52,                    // OP6 output level
+    0x02,                    // freq coarse and osc mode
+    0x00,                    // freq fine
+    0x4d, 0x24, 0x29, 0x47,  // same for OP5
+    0x63, 0x62, 0x62, 0x00,
+    0x27,
+    0x00,
+    0x00,
+    0x0f,
+    0x40,
+    0x08,
+    0x62,
+    0x02,
+    0x00,
+    0x4d, 0x24, 0x29, 0x47,  // OP4
+    0x63, 0x62, 0x62, 0x00,
+    0x27,
+    0x00,
+    0x00,
+    0x0f,
+    0x38,
+    0x08,
+    0x63,
+    0x02,
+    0x00,
+    0x4d, 0x4c, 0x52, 0x47,  // OP3
+    0x63, 0x62, 0x62, 0x00,
+    0x27,
+    0x00,
+    0x00,
+    0x0f,
+    0x28,
+    0x08,
+    0x63,
+    0x02,
+    0x00,
+    0x3e, 0x33, 0x1d, 0x47,  // OP2
+    0x52, 0x5f, 0x60, 0x00,
+    0x1b,
+    0x00,
+    0x07,
+    0x07,
+    0x70,
+    0x00,
+    0x56,
+    0x00,
+    0x00,
+    0x48, 0x4c, 0x63, 0x47,  // OP1
+    0x63, 0x58, 0x60, 0x00,
+    0x27,
+    0x00,
+    0x0e,
+    0x0f,
+    0x70,
+    0x00,
+    0x62,
+    0x00,
+    0x00,
+    0x54, 0x5f, 0x5f, 0x3c,  // PEG rates
+    0x32, 0x32, 0x32, 0x32,  // PEG levels
+    0x15,                    // ALG
+    0x0f,                    // osc key sync and feedback
+    0x25,                    // LFO speed
+    0x00,                    // LFO delay
+    0x05,                    // LFO pitch mod dep
+    0x00,                    // LFO amp mod dep
+    0x38,                    // LFO pitch mode sens, wave, sync
+    0x18,                    // transpose
+    0x42, 0x52, 0x41, 0x53, 0x53, 0x20, 0x20, 0x20, 0x31, 0x20,   // name (10 characters)

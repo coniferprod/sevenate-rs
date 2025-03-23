@@ -114,8 +114,8 @@ impl SystemExclusiveData for Header {
             channel: MIDIChannel::new(channel),
             format,
             byte_count: match format {
-                Format::Voice => 155,
-                Format::Cartridge => 4069,
+                Format::Voice => crate::dx7::voice::VOICE_SIZE as u16,
+                Format::Cartridge => crate::dx7::cartridge::CARTRIDGE_DATA_SIZE as u16,
             }
         })
     }
@@ -166,7 +166,7 @@ mod tests {
         let last_index = rom1a_data.len() - 2;
 
         let data = &rom1a_data[first_index..=last_index];
-        assert_eq!(data.len(), 4096);
+        assert_eq!(data.len(), crate::dx7::cartridge::CARTRIDGE_DATA_SIZE);
 
         // The original checksum is 0x33
         let cs = checksum(data);
