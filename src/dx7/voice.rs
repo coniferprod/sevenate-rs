@@ -154,8 +154,16 @@ impl Voice {
         offset += 4;
 
         let mut byte116: u8 = data[offset];  // LFO sync
+        // Thought there might be an error in the Dexed description of packed data:
+        /*
         byte116.set_bit_range(1..4, data[offset + 1]);  // LFO waveform
         byte116.set_bit_range(4..7, data[offset + 2]);  // pitch mod sens (voice)
+         */
+        // Working instead from the Dexed documentation:
+        byte116.set_bit_range(1..5, data[offset + 1]);
+        byte116.set_bit_range(5..7, data[offset + 2]);
+
+        //println!("byte116 = {:#04x}", byte116);
         result.push(byte116);
         offset += 3;
 
