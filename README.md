@@ -292,6 +292,85 @@ In the SysEx data, the value zero denotes -7, while the value 14 is +7:
 
 To get from the SysEx data byte to the actual value you need to subtract 7.
 
+## Rust considerations
+
+### Operators and EGs
+
+A Yamaha DX7 voice has six operators, while an envelope generator has four rates and
+four levels. These numbers are never going to change when dealing with DX7 data.
+That is why each operator has its own member in the `Voice` struct, and each rate and
+level similarly has its own member in the `Envelope` struct. In my opinion,
+this makes the code significantly easier to read and write, compared to traditional
+zero-based array/vector indexing. It is more intuitive to write `op1.level` than
+`op[0].level`.
+
+### The newtype pattern
+
+The data types of some struct members are defined using the newtype pattern in Rust.
+
+Each voice parameter has an allowed range of values. For example, operator levels
+go from 0 to 99 inclusive, detune values are -7 to +7, and so on.
+
+To be able to catch or suppress errors in setting parameter values, I wanted to have
+a data type that would restrict its values to a given range, and possibly clamp any
+value that falls outside the range. Also, it would convenient to create random values
+for a parameter, and maybe also restrict those random values into a subrange.
+
+In Rust, a newtype is "a struct with a single component that you define to get stricter
+type checking" ("Programming Rust, 2nd Edition", p. 213). As with any struct, it is
+possible to define traits for the newtype. I defined a newtype for every relevant
+parameter value, such as `UnsignedLevel` and `Detune`, and defined a simple interface
+that allows me to make new values and retrieve them, and also get a byte representation
+for System Exclusive messages.
+
+Each newtype is backed by an `i32` value. The parameter values would fit into an `i16`,
+but since `i32` is the integer type inferred by default, it is much more convenient
+to use. For example, the value of the detune parameter ranges from -7 to 7.
+It is represented in System Exclusive messages as a value from 0 to 14.
+
+### Constructing parameter values
+
+Now, when I have newtype like `Detune`, I can implement a method that returns the
+range:
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct Detune(i32);
+
+    impl Detune {
+        pub fn range() -> RangeInclusive<i32> {
+            RangeInclusive::new(-7, 7)
+        }
+    }
+
+When a new `Detune` struct is constructed, the tentative value is checked against
+the range:
+
+    impl Detune {
+        pub fn new(value: i32) -> Self {
+            let range = Detune::range();
+            if range.contains(&value) {
+                Detune(value)
+            }
+            else {
+                if Self::is_clamped() {
+                    Detune(num::clamp(value, *range.start(), *range.end()))
+                }
+                else {
+                    panic!("expected value in range {}...{}, got {}", *range.start(), *range.end(), value);
+                }
+            }
+        }
+    }
+
+If the value is out of range, it gets clamped, using the `clamp` function in the
+`num` crate. The clamping is controlled by the `is_clamped` function:
+
+    impl Detune {
+        pub fn is_clamped() -> bool {
+            return true
+        }
+    }
+
 ## Dissection of a DX7 patch
 
 The SysEx file for an individual voice is 163 bytes:
@@ -430,3 +509,110 @@ Here is the first voice in the ROM1A cartridge ("BRASS  1 "), packed:
     0x38,                    // LFO pitch mode sens, wave, sync
     0x18,                    // transpose
     0x42, 0x52, 0x41, 0x53, 0x53, 0x20, 0x20, 0x20, 0x31, 0x20,   // name (10 characters)
+
+## Patch data structure
+
+Packed data format:
+
+    0x31, 0x63, 0x1c, 0x44,  // OP6 EG rates
+    0x62, 0x62, 0x5b, 0x00,  // OP6 EG levels
+    0x27,                    // level scl brkpt
+    0x36,                    // scl left depth
+    0x32,                    // scl right depth
+    0x05,                    // scl left curve and right curve
+    0x3c,                    // osc detune and osc rate scale
+    0x08,                    // key vel sens and amp mod sens
+    0x52,                    // OP6 output level
+    0x02,                    // freq coarse and osc mode
+    0x00,                    // freq fine
+    0x4d, 0x24, 0x29, 0x47,  // same for OP5
+    0x63, 0x62, 0x62, 0x00,
+    0x27,
+    0x00,
+    0x00,
+    0x0f,
+    0x40,
+    0x08,
+    0x62,
+    0x02,
+    0x00,
+    0x4d, 0x24, 0x29, 0x47,  // OP4
+    0x63, 0x62, 0x62, 0x00,
+    0x27,
+    0x00,
+    0x00,
+    0x0f,
+    0x38,
+    0x08,
+    0x63,
+    0x02,
+    0x00,
+    0x4d, 0x4c, 0x52, 0x47,  // OP3
+    0x63, 0x62, 0x62, 0x00,
+    0x27,
+    0x00,
+    0x00,
+    0x0f,
+    0x28,
+    0x08,
+    0x63,
+    0x02,
+    0x00,
+    0x3e, 0x33, 0x1d, 0x47,  // OP2
+    0x52, 0x5f, 0x60, 0x00,
+    0x1b,
+    0x00,
+    0x07,
+    0x07,
+    0x70,
+    0x00,
+    0x56,
+    0x00,
+    0x00,
+    0x48, 0x4c, 0x63, 0x47,  // OP1
+    0x63, 0x58, 0x60, 0x00,
+    0x27,
+    0x00,
+    0x0e,
+    0x0f,
+    0x70,
+    0x00,
+    0x62,
+    0x00,
+    0x00,
+    0x54, 0x5f, 0x5f, 0x3c,  // PEG rates
+    0x32, 0x32, 0x32, 0x32,  // PEG levels
+    0x15,                    // ALG
+    0x0f,                    // osc key sync and feedback
+    0x25,                    // LFO speed
+    0x00,                    // LFO delay
+    0x05,                    // LFO pitch mod dep
+    0x00,                    // LFO amp mod dep
+    0x38,                    // LFO pitch mode sens, wave, sync
+    0x18,                    // transpose
+    0x42, 0x52, 0x41, 0x53, 0x53, 0x20, 0x20, 0x20, 0x31, 0x20,   // name (10 characters)
+
+Note that there seems to be an error in the DX7 packed format description.
+I couldn't have made this without the information found therein, but the packed LFO caused
+some trouble. The document describes byte 116 of the packed format like this:
+
+    byte             bit #
+    #     6   5   4   3   2   1   0   param A       range  param B       range
+    ----  --- --- --- --- --- --- ---  ------------  -----  ------------  -----
+    116  |  LPMS |      LFW      |LKS| LF PT MOD SNS 0-7   WAVE 0-5,  SYNC 0-1
+
+Actually it seems to be like this:
+
+    byte             bit #
+    #     6   5   4   3   2   1   0   param A       range  param B       range
+    ----  --- --- --- --- --- --- ---  ------------  -----  ------------  -----
+    116  |   LPMS    |  LFW      |LKS| LF PT MOD SNS 0-7   WAVE 0-5,  SYNC 0-1
+
+The LFO pitch modulation sensitivity value (three bits, 0...7) is in bits 4...6,
+and the LFO waveform (four bits, 0...5) is in bits 1...3.
+
+I cross-checked this with the "BRASS 1" patch from the original ROM1 cartridge data.
+The corresponding byte in the original data is 0x38 = 0b00111000, which parses to
+sync = false, LFO waveform = 4 or sine, and pitch mod sens = 3. These match the
+patch chart on page 28 of the DX7 Operating Manual.
+
