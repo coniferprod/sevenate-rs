@@ -267,8 +267,8 @@ impl SystemExclusiveData for Voice {
         let feedback = Depth::new(data[135].into());
 
         //dbg_hex!(data[144]);
-        //let transpose = Transpose::from(data[144]);
-        let transpose = Transpose::new(data[144] as i32 - 24);
+        let transpose = Transpose::from(data[144]);
+        //let transpose = Transpose::new(data[144] as i32 - 24);
 
         //dbg_hex!(&data[145..155]);
         let name = VoiceName::from_string(String::from_utf8(data[145..155].to_vec()).unwrap());
