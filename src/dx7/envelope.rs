@@ -1,5 +1,6 @@
 use std::fmt;
 use rand::Rng;
+use log::warn;
 
 use crate::{
     Ranged,
@@ -104,10 +105,34 @@ impl fmt::Display for Envelope {
 impl SystemExclusiveData for Envelope {
     /// Makes an envelope generator from relevant SysEx message bytes.
     fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        Ok(Envelope::new_rate_level_int(
-            [data[0].into(), data[1].into(), data[2].into(), data[3].into()],
-            [data[4].into(), data[5].into(), data[6].into(), data[7].into()]
-        ))
+        let mut rates: Rates = [Default::default(); 4];
+        let mut levels: Levels = [Default::default(); 4];
+
+        for i in 0 .. 4 {
+            let value = data[i] as i32;
+            rates[i] = Rate::new(if Rate::contains(value) {
+                value
+            } else {
+                let first = Rate::FIRST;
+                let last = Rate::LAST;
+                warn!("clamping SysEx value {value} to {first} ..= {last}");
+                num::clamp(value, Rate::FIRST, Rate::LAST)
+            });
+        }
+
+        for i in 0 .. 4 {
+            let value = data[i + 4] as i32;
+            levels[i] = Level::new(if Level::contains(value) {
+                value
+            } else {
+                let first = Level::FIRST;
+                let last = Level::LAST;
+                warn!("clamping SysEx value {value} to {first} ..= {last}");
+                num::clamp(value, Level::FIRST, Level::LAST)
+            });
+        }
+
+        Ok(Envelope::new_rate_level(rates, levels))
     }
 
     /// Gets the SysEx bytes of this EG.
