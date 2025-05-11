@@ -100,22 +100,15 @@ impl Depth {
     }
 }
 
-/// Key transpose in octaves (-2...2).
+/// Key transpose in semitones (-24...+24, or two octaves).
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Transpose(i32);
 
-crate::ranged_impl!(Transpose, -2, 2, 0);
+crate::ranged_impl!(Transpose, -24, 24, 0);
 
 impl Transpose {
     pub fn as_byte(&self) -> u8 {
-        // The transpose is expressed in octaves,
-        // but the SysEx has it as semitones:
-        let semitone_count = self.0 * 12;
-        // So, -2 becomes -2*12 = -24,
-        // and +2 becomes +2*12 = 24.
-
-        // Convert to the range 0...48
-        (semitone_count + 24) as u8
+        (self.0 + 24) as u8  // adjust to 0...48
     }
 }
 
@@ -124,9 +117,8 @@ impl From<u8> for Transpose {
     fn from(item: u8) -> Self {
         // SysEx value is 0...48, corresponding to four octaves
         // with 12 semitones each)
-        let semitones = item as i32 - 24;  // bring to range -24...24
-        let mut octave_count = semitones / 12;
-        Transpose::new(octave_count).try_into().unwrap()
+        let semitones = item as i32 - 24;  // adjust to range -24...+24
+        Transpose::new(semitones).try_into().unwrap()
     }
 }
 
