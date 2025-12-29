@@ -101,8 +101,8 @@ impl fmt::Display for Header {
 
 impl SystemExclusiveData for Header {
     fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        let byte_count_msb = data[2];
-        let byte_count_lsb = data[3];
+        //let byte_count_msb = data[2];
+        //let byte_count_lsb = data[3];
         let channel = ((data[0] & 0b00001111) + 1) as i32;
         if !MIDIChannel::contains(channel) {
             return Err(ParseError::InvalidData(1)) // offset of value

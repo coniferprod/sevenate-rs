@@ -2,7 +2,7 @@ use std::fmt;
 
 use bit::BitIndex;
 use dbg_hex::dbg_hex;
-use rand::seq::SliceRandom;
+use rand::prelude::IndexedRandom;
 
 use crate::{
     ParseError,
@@ -55,7 +55,7 @@ impl VoiceName {
             'w', 'g', 'z', 'd', 'b', 'p'
         ];
         let vowels = vec!['a', 'i', 'u', 'e', 'o'];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let consonant = consonants.choose(&mut rng).unwrap();
         let vowel = vowels.choose(&mut rng).unwrap();
         format!("{}{}", consonant, vowel)
@@ -181,7 +181,7 @@ impl Voice {
         let mut result: Vec<u8> = Vec::new();
 
         let mut offset = 0;
-        for i in (0..6).rev() {  // NOTE: reverse order!
+        for _i in (0..6).rev() {  // NOTE: reverse order!
             let size = 17;  // packed operator data length
             result.extend(Operator::unpack(&data[offset .. offset + size]));
             offset += size;

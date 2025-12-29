@@ -65,8 +65,8 @@ macro_rules! ranged_impl {
             }
 
             fn random() -> Self {
-                let mut rng = rand::thread_rng();
-                Self::new(rng.gen_range(Self::FIRST..=Self::LAST))
+                let mut rng = rand::rng();
+                Self::new(rng.random_range(Self::FIRST..=Self::LAST))
             }
         }
 

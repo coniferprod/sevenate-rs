@@ -13,12 +13,10 @@ use crate::dx7::{
     Detune,
     Sensitivity,
     Coarse,
-    compare_slices
 };
 
 use crate::dx7::envelope::{
     Envelope,
-    Rate
 };
 
 use crate::dx7::sysex::SystemExclusiveData;
@@ -401,6 +399,8 @@ Coarse = {}, Fine = {}, Detune = {}",
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
+    use crate::dx7::compare_slices;
+    use crate::dx7::envelope::Rate;
 
     #[test]
     fn test_from_packed_bytes() {

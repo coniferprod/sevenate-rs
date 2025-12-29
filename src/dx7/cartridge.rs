@@ -29,7 +29,7 @@ impl SystemExclusiveData for Cartridge {
     fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let mut offset = 0;
         let mut voices = Vec::<Voice>::new();
-        for i in 0..VOICE_COUNT {
+        for _i in 0..VOICE_COUNT {
             //eprintln!("VOICE {}", i + 1);
             let packed_voice_data = &data[offset..offset + VOICE_PACKED_SIZE];
             //eprintln!("Packed voice data length = {}", packed_voice_data.len());
