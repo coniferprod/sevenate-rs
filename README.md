@@ -37,6 +37,25 @@ For example, the `Algorithm` type represents values from 1 to 32 inclusive:
         }
     }
 
+Use the constructor of the domain type when making a value:
+
+    let alg = Algorithm::new(data[134] as i32 + 1);  // 0...31 to 1...32
+
+If you specify an initial value that is outside the range `FIRST`..=`LAST`
+the constructor will panic, so you should first check that the value fits
+using the `contains` method:
+
+    let alg_value = 42;
+    let algorithm: Algorithm;
+    if Algorithm::contains(alg_value) {
+        algorithm = Algorithm::new(alg_value);
+        println!("algorithm = {}", algorithm);
+    } else {
+        eprintln!("Bad value for algorithm: {}", alg_value);
+    }
+
+This might be better expressed with an optional, though.
+
 ### The `ranged_impl!` macro
 
 It becomes quite tedious to implement the `Ranged` trait for all the
@@ -45,6 +64,14 @@ grunt work. It generates an implementation of the `Ranged` trait for a given typ
 along with the `Default` and `Display` traits. The default value is the
 `DEFAULT` associated constant, while the displayed value is the actual
 value wrapped by the type.
+
+To create a new domain type, make a newtype and use the `ranged_impl!` macro:
+
+    /// Algorithm (1...32)
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+    pub struct Algorithm(i32);
+
+    crate::ranged_impl!(Algorithm, 1, 32, 32);  // first, last, default
 
 Remember to install `cargo-expand` if you want to see the result of the
 macro expansion:
