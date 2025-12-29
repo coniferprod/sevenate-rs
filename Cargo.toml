@@ -1,8 +1,10 @@
 [package]
 name = "sevenate"
+description = "Rust library for working with Yamaha DX7 patches"
 version = "0.6.2"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 log = "0.4.29"    # https://crates.io/crates/log
