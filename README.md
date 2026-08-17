@@ -4,57 +4,17 @@ Rust library for working with Yamaha DX7 patches.
 
 ## Usage
 
-The crate contains several types that implement the `Ranged` trait.
-Each of them is newtype, followed by the trait implementation.
-For example, the `Algorithm` type represents values from 1 to 32 inclusive:
+The crate contains several types that implement the `Ranged` trait
+from the SyxPack crate. Each of them is newtype, followed by the trait implementation.
+For example, the `Algorithm` type represents values from 1 to 32 inclusive.
 
-    pub struct Algorithm(i32);
+When making a value of a doman type from a MIDI System Exclusive data byte,
+use the `parse_or_default` function in the SyxPack crate:
 
-    impl Ranged for Algorithm {
-        const FIRST: i32 = 1;
-        const LAST: i32 = 32;
-        const DEFAULT: i32 = 32;
+    let alg = parse_or_default::<Algorithm>(data[134])
 
-        fn new(value: i32) -> Self {
-            if Self::contains(value) {
-                Self(value)
-            }
-            else {
-                panic!("expected value in range {}...{}, got {}",
-                    Self::FIRST, Self::LAST, value);
-            }
-        }
-
-        fn value(&self) -> i32 { self.0 }
-
-        fn contains(value: i32) -> bool {
-            value >= Self::FIRST && value <= Self::LAST
-        }
-
-        fn random_value() -> Self {
-            let mut rng = rand::thread_rng();
-            Self::new(rng.gen_range(Self::FIRST..=Self::LAST))
-        }
-    }
-
-Use the constructor of the domain type when making a value:
-
-    let alg = Algorithm::new(data[134] as i32 + 1);  // 0...31 to 1...32
-
-If you specify an initial value that is outside the range `FIRST`..=`LAST`
-the constructor will panic, so you should first check that the value fits
-using the `contains` method:
-
-    let alg_value = 42;
-    let algorithm: Algorithm;
-    if Algorithm::contains(alg_value) {
-        algorithm = Algorithm::new(alg_value);
-        println!("algorithm = {}", algorithm);
-    } else {
-        eprintln!("Bad value for algorithm: {}", alg_value);
-    }
-
-This might be better expressed with an optional, though.
+This will perform the necessary conversion using the `Encoding` trait from
+SyxPack.
 
 ### The `ranged_impl!` macro
 
@@ -97,37 +57,16 @@ the domain types. This could be made generic, but this seems to work
 for now and is easy to use. The parameter values would fit into an `i16`;
 for example, the value of the detune parameter ranges from -7 to 7, and
 it is represented in System Exclusive messages as a value from 0 to 14.
-Since `i32` is the integer type inferred by default, it is much more convenient
+However, since `i32` is the integer type inferred by default, it is much more convenient
 to use.
 
 Each domain type is a newtype ("a struct with a single component that you define to get stricter
 type checking" ("Programming Rust, 2nd Edition", p. 213)).
 
-### Leaning on the `From` trait
-
-Most DX7 parameters appear as one byte in the System Exclusive data.
-However, they often need a little adjustment to get them from the
-7-bit MIDI byte to their respective range. For example, the algorithm
-used for a voice is 1...32, but it is stored in the SysEx data as a
-value in the range 0...31. Many other parameters are expressed similarly.
-
-The `From<u8>` trait implementation on the `Algorithm` newtype is used to convert
-from a System Exclusive data byte representing the algorithm (0...31)
-to the actual algorithm value (1...32):
-
-    impl From<u8> for Algorithm {
-        fn from(item: u8) -> Self {
-            Algorithm(item + 1)  // bring into 1...32
-        }
-    }
-
-The detune parameter ranges from -7 to +7, so there are 15 discrete values.
-In the SysEx data, the value zero denotes -7, while the value 14 is +7:
-
-     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
-    -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4 +5 +6 +7
-
-To get from the SysEx data byte to the actual value you need to subtract 7.
+The `Encoding` trait can be used to perform any adjustments when reading from
+or writing to System Exclusive data files. The default implementations of the
+trait methods perform an identity transformation, so you only need to implement
+this trait if the domain type value needs adjustments.
 
 ## History and rationale
 

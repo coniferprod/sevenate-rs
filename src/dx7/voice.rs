@@ -4,9 +4,12 @@ use bit::BitIndex;
 use dbg_hex::dbg_hex;
 use rand::prelude::IndexedRandom;
 
-use crate::{
+use syxpack::{
     ParseError,
     Ranged,
+    Encoding,
+    parse_or_default,
+    SystemExclusiveData,
 };
 
 use crate::dx7::{
@@ -14,10 +17,8 @@ use crate::dx7::{
     Depth,
     Transpose,
     Level,
-    compare_slices,
 };
 
-use crate::dx7::sysex::SystemExclusiveData;
 use crate::dx7::operator::Operator;
 use crate::dx7::lfo::Lfo;
 use crate::dx7::envelope::Envelope;
@@ -261,17 +262,19 @@ impl SystemExclusiveData for Voice {
         let peg = Envelope::parse(&data[126..134])?;
 
         //dbg_hex!(data[134]);
-        let alg = Algorithm::new(data[134] as i32 + 1);  // 0...31 to 1...32
+        let alg = parse_or_default::<Algorithm>(data[134]);        
 
         //dbg_hex!(data[135]);
-        let feedback = Depth::new(data[135].into());
+        let feedback = parse_or_default::<Depth>(data[135]);
 
         //dbg_hex!(data[144]);
-        let transpose = Transpose::from(data[144]);
-        //let transpose = Transpose::new(data[144] as i32 - 24);
+        let transpose = parse_or_default::<Transpose>(data[144]);
 
         //dbg_hex!(&data[145..155]);
-        let name = VoiceName::from_string(String::from_utf8(data[145..155].to_vec()).unwrap());
+        let name = VoiceName::from_string(
+            String::from_utf8(data[145..155].to_vec())
+                .unwrap()
+        );
 
         Ok(Voice {
             operators: [
@@ -287,7 +290,7 @@ impl SystemExclusiveData for Voice {
             feedback,
             osc_sync: data[136] == 1,
             lfo: Lfo::parse(&data[137..143])?,
-            pitch_mod_sens: Depth::new(data[143].into()),
+            pitch_mod_sens: parse_or_default::<Depth>(data[143]),
             transpose,
             name,
         })
@@ -302,22 +305,22 @@ impl SystemExclusiveData for Voice {
 
         data.extend(self.peg.to_bytes());
 
-        data.push(self.alg.as_byte());
-        data.push(self.feedback.as_byte());
+        data.push(self.alg.encode());
+        data.push(self.feedback.encode());
         data.push(if self.osc_sync { 1 } else { 0 });
         data.extend(self.lfo.to_bytes());
-        data.push(self.pitch_mod_sens.as_byte());
-        data.push(self.transpose.as_byte());
+        data.push(self.pitch_mod_sens.encode());
+        data.push(self.transpose.encode());
 
         let padded_name = format!("{:<10}", self.name.value());
         data.extend(padded_name.into_bytes());
 
-        assert_eq!(data.len(), Self::DATA_SIZE);
+        assert_eq!(data.len(), VOICE_SIZE);
 
         data
     }
 
-    const DATA_SIZE: usize = 155;
+    fn data_size() -> usize { VOICE_SIZE }
 }
 
 impl fmt::Display for Voice {

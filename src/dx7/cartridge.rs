@@ -1,12 +1,15 @@
 use log::debug;
 use dbg_hex::dbg_hex;
 
-use crate::ParseError;
+use syxpack::{
+    ParseError,
+    SystemExclusiveData,
+};
+
 use crate::dx7::voice::{
     Voice,
     VOICE_PACKED_SIZE
 };
-use crate::dx7::sysex::SystemExclusiveData;
 
 pub const VOICE_COUNT: usize = 32;
 pub const CARTRIDGE_DATA_SIZE: usize = 4096;
@@ -58,7 +61,9 @@ impl SystemExclusiveData for Cartridge {
         data
     }
 
-    const DATA_SIZE: usize = CARTRIDGE_DATA_SIZE;
+    fn data_size() -> usize {
+        CARTRIDGE_DATA_SIZE
+    }
 }
 
 #[cfg(test)]

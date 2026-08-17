@@ -4,10 +4,16 @@ use rand::Rng;
 
 use dbg_hex::dbg_hex;
 
-use crate::ParseError;
+use syxpack::{
+    ParseError,
+    Ranged,
+    ranged_impl,
+    Encoding,
+    SystemExclusiveData,
+    parse_or_default,
+};
 
 use crate::dx7::{
-    Ranged,
     Depth,
     Level,
     Detune,
@@ -15,11 +21,8 @@ use crate::dx7::{
     Coarse,
 };
 
-use crate::dx7::envelope::{
-    Envelope,
-};
+use crate::dx7::envelope::Envelope;
 
-use crate::dx7::sysex::SystemExclusiveData;
 
 /// Scaling curve style.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -77,16 +80,6 @@ impl ScalingCurve {
     pub fn exp_neg() -> Self {
         ScalingCurve { style: CurveStyle::Exponential, sign: CurveSign::Negative }
     }
-
-    /// Gets the SysEx byte for this scaling curve.
-    pub fn as_byte(&self) -> u8 {
-        match self {
-            ScalingCurve { style: CurveStyle::Linear, sign: CurveSign::Positive } => 3,
-            ScalingCurve { style: CurveStyle::Linear, sign: CurveSign::Negative } => 0,
-            ScalingCurve { style: CurveStyle::Exponential, sign: CurveSign::Positive } => 2,
-            ScalingCurve { style: CurveStyle::Exponential, sign: CurveSign::Negative } => 1,
-        }
-    }
 }
 
 impl fmt::Display for ScalingCurve {
@@ -107,27 +100,30 @@ impl From<u8> for ScalingCurve {
     }
 }
 
+impl Into<u8> for ScalingCurve {
+    fn into(self) -> u8 {
+        match self {
+            ScalingCurve { style: CurveStyle::Linear, sign: CurveSign::Positive } => 3,
+            ScalingCurve { style: CurveStyle::Linear, sign: CurveSign::Negative } => 0,
+            ScalingCurve { style: CurveStyle::Exponential, sign: CurveSign::Positive } => 2,
+            ScalingCurve { style: CurveStyle::Exponential, sign: CurveSign::Negative } => 1,
+        }
+    }
+}
+
 /// Key
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Key(i32);
-crate::ranged_impl!(Key, 0, 99, 39);  // note the default!
+ranged_impl!(Key, 0, 99, 39);  // note the default!
+
+impl Encoding for Key { }  // identity transformation
 
 impl Key {
-    pub fn as_byte(&self) -> u8 {
-        self.0 as u8
-    }
-
     pub fn name(&self) -> String {
         let notes = [ "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" ];
         let octave: usize = self.value() as usize / 12 + 1;
         let name = notes[(self.value() % 12) as usize];
         format!("{}{}", name, octave)
-    }
-}
-
-impl From<u8> for Key {
-    fn from(item: u8) -> Self {
-        Key::new(item as i32)
     }
 }
 
@@ -167,24 +163,30 @@ impl SystemExclusiveData for KeyboardLevelScaling {
     /// Makes new keyboard level scaling settings from SysEx bytes.
     fn parse(data: &[u8]) -> Result<Self, ParseError> {
         Ok(Self {
-            breakpoint: Key::new(data[0].into()),
-            left: Scaling { depth: Level::new(data[1].into()), curve: ScalingCurve::from(data[3]) },
-            right: Scaling { depth: Level::new(data[2].into()), curve: ScalingCurve::from(data[4]) },
+            breakpoint: parse_or_default::<Key>(data[0]),
+            left: Scaling { 
+                depth: parse_or_default::<Level>(data[1]), 
+                curve: ScalingCurve::from(data[3])
+            },
+            right: Scaling { 
+                depth: parse_or_default::<Level>(data[2]), 
+                curve: ScalingCurve::from(data[4])
+            },
         })
     }
 
     /// Gets the SysEx bytes representing this set of parameters.
     fn to_bytes(&self) -> Vec<u8> {
         vec![
-            self.breakpoint.as_byte(),
-            self.left.depth.as_byte(),
-            self.right.depth.as_byte(),
-            self.left.curve.as_byte(),
-            self.right.curve.as_byte(),
+            self.breakpoint.encode(),
+            self.left.depth.encode(),
+            self.right.depth.encode(),
+            self.left.curve.into(),
+            self.right.curve.into(),
         ]
     }
 
-    const DATA_SIZE: usize = 5;
+    fn data_size() -> usize { 5 }
 }
 
 /// Operator mode.
@@ -322,22 +324,21 @@ impl SystemExclusiveData for Operator {
         //println!("KLS = {}", kbd_level_scaling);
 
         //dbg!(data[13]);
-        let kbd_rate_scaling = Depth::new(data[13].into());
+        let kbd_rate_scaling = parse_or_default::<Depth>(data[13]);
         //dbg!(kbd_rate_scaling);
 
         //dbg!(data[14]);
-        let amp_mod_sens = Sensitivity::new(data[14].into());
+        let amp_mod_sens = parse_or_default::<Sensitivity>(data[14]);
         //dbg!(amp_mod_sens);
 
-        let key_vel_sens = Depth::new(data[15].into());
-        let output_level = Level::new(data[16].into());
+        let key_vel_sens = parse_or_default::<Depth>(data[15]);
+        let output_level = parse_or_default::<Level>(data[16]);
         let mode = if data[17] == 0b1 { OperatorMode::Fixed } else { OperatorMode::Ratio };
-        let coarse = Coarse::new(data[18].into());
-        let fine = Level::new(data[19].into());
+        let coarse = parse_or_default::<Coarse>(data[18]);
+        let fine = parse_or_default::<Level>(data[19]);
 
         //dbg!(data[20]);
-        //let detune = Detune::from(data[20]);
-        let detune = Detune::new(data[20] as i32 - 7);
+        let detune = parse_or_default::<Detune>(data[20]);
 
         Ok(Self {
             eg,
@@ -358,21 +359,23 @@ impl SystemExclusiveData for Operator {
         let mut data: Vec<u8> = Vec::new();
         data.extend(self.eg.to_bytes());
         data.extend(self.kbd_level_scaling.to_bytes());
-        data.push(self.kbd_rate_scaling.as_byte());
-        data.push(self.amp_mod_sens.as_byte());
-        data.push(self.key_vel_sens.as_byte());
-        data.push(self.output_level.as_byte());
+        data.push(self.kbd_rate_scaling.encode());
+        data.push(self.amp_mod_sens.encode());
+        data.push(self.key_vel_sens.encode());
+        data.push(self.output_level.encode());
         data.push(self.mode as u8);
-        data.push(self.coarse.as_byte());
-        data.push(self.fine.as_byte());
-        data.push(self.detune.as_byte()); // 0 = detune -7, 7 = 0, 14 = +7
+        data.push(self.coarse.encode());
+        data.push(self.fine.encode());
+        data.push(self.detune.encode()); // 0 = detune -7, 7 = 0, 14 = +7
 
         assert_eq!(data.len(), 21);
 
         data
     }
 
-    const DATA_SIZE: usize = 21;
+    fn data_size() -> usize {
+        21
+    }
 }
 
 impl fmt::Display for Operator {
@@ -442,8 +445,14 @@ mod tests {
             },
             kbd_level_scaling: KeyboardLevelScaling {
                 breakpoint: Key::new(39),
-                left: Scaling { depth: Level::new(54), curve: ScalingCurve::exp_neg() },
-                right: Scaling { depth: Level::new(50), curve: ScalingCurve::exp_neg() },
+                left: Scaling { 
+                    depth: Level::new(54), 
+                    curve: ScalingCurve::exp_neg() 
+                },
+                right: Scaling { 
+                    depth: Level::new(50), 
+                    curve: ScalingCurve::exp_neg() 
+                },
             },
             kbd_rate_scaling: Depth::new(4),
             amp_mod_sens: Sensitivity::new(0),

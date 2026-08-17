@@ -1,30 +1,23 @@
 use std::fmt;
+
 use rand::Rng;
 use log::warn;
-
-use crate::{
+use syxpack::{
+    ParseError,
     Ranged,
-    ParseError
+    ranged_impl,
+    Encoding,
+    SystemExclusiveData,
 };
+
 use crate::dx7::Level;
-use crate::dx7::sysex::SystemExclusiveData;
 
 /// Envelope rate (0...99)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Rate(i32);
-crate::ranged_impl!(Rate, 0, 99, 0);
+ranged_impl!(Rate, 0, 99, 0);
 
-impl Rate {
-    pub fn as_byte(&self) -> u8 {
-        self.0 as u8
-    }
-}
-
-impl From<u8> for Rate {
-    fn from(item: u8) -> Self {
-        Rate::new(item as i32)
-    }
-}
+impl Encoding for Rate { }
 
 pub type Rates = [Rate; 4];
 pub type Levels = [Level; 4];
@@ -138,18 +131,18 @@ impl SystemExclusiveData for Envelope {
     /// Gets the SysEx bytes of this EG.
     fn to_bytes(&self) -> Vec<u8> {
         vec![
-            self.rates[0].as_byte(),
-            self.rates[1].as_byte(),
-            self.rates[2].as_byte(),
-            self.rates[3].as_byte(),
-            self.levels[0].as_byte(),
-            self.levels[1].as_byte(),
-            self.levels[2].as_byte(),
-            self.levels[3].as_byte()
+            self.rates[0].encode(),
+            self.rates[1].encode(),
+            self.rates[2].encode(),
+            self.rates[3].encode(),
+            self.levels[0].encode(),
+            self.levels[1].encode(),
+            self.levels[2].encode(),
+            self.levels[3].encode()
         ]
     }
 
-    const DATA_SIZE: usize = 8;
+    fn data_size() -> usize { 8 }
 }
 
 #[cfg(test)]

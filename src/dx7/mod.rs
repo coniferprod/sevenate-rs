@@ -1,13 +1,10 @@
 use std::fmt;
-use std::convert::{
-    From,
-    TryFrom
-};
-use rand::Rng;
 
-use crate::{
+use rand::Rng;
+use syxpack::{
     Ranged,
-    ParseError
+    ranged_impl,
+    Encoding,
 };
 
 pub mod voice;
@@ -17,36 +14,19 @@ pub mod lfo;
 pub mod envelope;
 pub mod sysex;
 
-/// ASCII art diagrams for the DX7 algorithms.
-pub static ALGORITHM_DIAGRAMS: [&str; 32] = include!("algorithms.in");
-
 /// Algorithm (1...32)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Algorithm(i32);
 
-crate::ranged_impl!(Algorithm, 1, 32, 32);
+ranged_impl!(Algorithm, 1, 32, 32);
 
-impl Algorithm {
-    pub fn as_byte(&self) -> u8 {
-        (self.0 - 1) as u8  // adjust to 0...31 for SysEx
+impl Encoding for Algorithm {
+    fn decode(b: u8) -> i32 {
+        (b as i32) + 1  // adjust to 1...32
     }
 
-    pub fn algorithm_display(&self) -> String {
-        String::from(ALGORITHM_DIAGRAMS[(self.value() as usize) - 1])
-    }
-}
-
-impl TryFrom<u8> for Algorithm {
-    type Error = &'static str;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let v: i32 = (value + 1).into(); // make into 1...32
-        if Algorithm::contains(v) {
-            Ok(Algorithm::new(v))
-        }
-        else {
-            Err("bad algorithm value")
-        }
+    fn encode(&self) -> u8 {
+        (self.value() - 1) as u8 // adjust to 0...31 for SysEx
     }
 }
 
@@ -54,17 +34,15 @@ impl TryFrom<u8> for Algorithm {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Detune(i32);
 
-crate::ranged_impl!(Detune, -7, 7, 0);
+ranged_impl!(Detune, -7, 7, 0);
 
-impl Detune {
-    pub fn as_byte(&self) -> u8 {
-        (self.0 + 7) as u8  // adjust for SysEx
+impl Encoding for Detune {
+    fn decode(b: u8) -> i32 {
+        (b as i32) - 7  // adjust to -7...+7
     }
-}
 
-impl From<u8> for Detune {
-    fn from(item: u8) -> Self {
-        Detune::new((item - 7) as i32)
+    fn encode(&self) -> u8 {
+        (self.value() + 7) as u8  // adjust to 0...14 for SysEx
     }
 }
 
@@ -72,19 +50,9 @@ impl From<u8> for Detune {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Coarse(i32);
 
-crate::ranged_impl!(Coarse, 0, 31, 0);
+ranged_impl!(Coarse, 0, 31, 0);
 
-impl Coarse {
-    pub fn as_byte(&self) -> u8 {
-        self.0 as u8
-    }
-}
-
-impl From<u8> for Coarse {
-    fn from(item: u8) -> Self {
-        Coarse::new(item as i32)
-    }
-}
+impl Encoding for Coarse { }  // identity mapping, no adjustment needed
 
 /// Depth (0...7) for keyboard rate scaling,
 /// key velocity sensitivity, feedback,
@@ -92,33 +60,25 @@ impl From<u8> for Coarse {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Depth(i32);
 
-crate::ranged_impl!(Depth, 0, 7, 0);
+ranged_impl!(Depth, 0, 7, 0);
 
-impl Depth {
-    pub fn as_byte(&self) -> u8 {
-        self.0 as u8
-    }
-}
+impl Encoding for Depth { } // identity mapping, no adjustment needed
 
 /// Key transpose in semitones (-24...+24, or two octaves).
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Transpose(i32);
 
-crate::ranged_impl!(Transpose, -24, 24, 0);
+ranged_impl!(Transpose, -24, 24, 0);
 
-impl Transpose {
-    pub fn as_byte(&self) -> u8 {
-        (self.0 + 24) as u8  // adjust to 0...48
-    }
-}
-
-impl From<u8> for Transpose {
-    /// Makes a key transpose from a System Exclusive data byte.
-    fn from(item: u8) -> Self {
+impl Encoding for Transpose {
+    fn decode(b: u8) -> i32 {
         // SysEx value is 0...48, corresponding to four octaves
         // with 12 semitones each)
-        let semitones = item as i32 - 24;  // adjust to range -24...+24
-        Transpose::new(semitones).try_into().unwrap()
+        (b as i32) - 24  // adjust to -24...+24
+    }
+
+    fn encode(&self) -> u8 {
+        (self.value() + 24) as u8  // adjust to 0...48 for SysEx
     }
 }
 
@@ -126,37 +86,17 @@ impl From<u8> for Transpose {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Sensitivity(i32);
 
-crate::ranged_impl!(Sensitivity, 0, 3, 0);
+ranged_impl!(Sensitivity, 0, 3, 0);
 
-impl Sensitivity {
-    pub fn as_byte(&self) -> u8 {
-        self.0 as u8
-    }
-}
-
-impl From<u8> for Sensitivity {
-    fn from(item: u8) -> Self {
-        Sensitivity::new(item as i32)
-    }
-}
+impl Encoding for Sensitivity { } // identity mapping, no adjustment needed
 
 /// Envelope level (or operator output level) (0...99)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Level(i32);
 
-crate::ranged_impl!(Level, 0, 99, 0);
+ranged_impl!(Level, 0, 99, 0);
 
-impl Level {
-    pub fn as_byte(&self) -> u8 {
-        self.0 as u8
-    }
-}
-
-impl From<u8> for Level {
-    fn from(item: u8) -> Self {
-        Level::new(item as i32)
-    }
-}
+impl Encoding for Level { } // identity mapping, no adjustment needed
 
 // Finds the first offset where the two slices differ.
 // Returns None if no differences are found, or if the slices
@@ -180,9 +120,9 @@ pub fn compare_slices(v1: &[u8], v2: &[u8]) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use bit::BitIndex;
+    use syxpack::parse_or_default;
 
     use super::*;
-    use crate::dx7::operator::*;
     use crate::dx7::lfo::*;
 
     #[test]
@@ -193,27 +133,6 @@ mod tests {
         // i.e. 4..6 means bits 4 and 5.
         assert_eq!(b.bit_range(4..6), 0b11);
     }
-
-    #[test]
-    fn test_scaling_curve_exp_pos_to_bytes() {
-        assert_eq!(ScalingCurve::exp_pos().as_byte(), 2);
-    }
-
-    #[test]
-    fn test_scaling_curve_exp_neg_to_bytes() {
-        assert_eq!(ScalingCurve::exp_neg().as_byte(), 1);
-    }
-
-    #[test]
-    fn test_scaling_curve_lin_pos_to_bytes() {
-        assert_eq!(ScalingCurve::lin_pos().as_byte(), 3);
-    }
-
-    #[test]
-    fn test_scaling_curve_lin_neg_to_bytes() {
-        assert_eq!(ScalingCurve::lin_neg().as_byte(), 0);
-    }
-
 
     #[test]
     fn test_bulk_b111() {
@@ -237,28 +156,535 @@ mod tests {
 
     #[test]
     fn test_transpose_from_byte() {
-        let zero = Transpose::from(48);  // from SysEx byte
+        let zero = parse_or_default::<Transpose>(48);  // from SysEx byte
         assert_eq!(zero.value(), 24);
     }
 
     #[test]
     fn test_transpose_from_byte_minus_two() {
-        let minus_two_octaves = Transpose::from(0);  // from SysEx byte
+        let minus_two_octaves = parse_or_default::<Transpose>(0);  // from SysEx byte
         assert_eq!(minus_two_octaves.value(), -24);
     }
 
     #[test]
     fn test_transpose_from_byte_minus_one() {
-        let minus_one_octave = Transpose::from(12);  // from SysEx byte
-        assert_eq!(minus_one_octave.value(), -12);
+        let minus_one_octave = parse_or_default::<Transpose>(24);  // from SysEx byte
+        assert_eq!(minus_one_octave.value(), 0);
     }
 
     #[test]
     fn test_transpose_as_byte() {
         let none = Transpose::new(0);  // no transpose
-        assert_eq!(none.as_byte(), 24);
+        assert_eq!(none.encode(), 24);
 
         let plus_two = Transpose::new(24);
-        assert_eq!(plus_two.as_byte(), 48)
+        assert_eq!(plus_two.encode(), 48)
     }
 }
+
+/// ASCII art diagrams for the DX7 algorithms.
+pub static ALGORITHM_DIAGRAMS: [&str; 32] = [
+// Algorithm #1:
+"
+         +---+
+       +-+-+ |
+       | 6 | |
+       +-+-+ |
+         |---+
+       +-+-+
+       | 5 |
+       +-+-+
+         |
++---+  +-+-+
+| 2 |  | 4 |
++-+-+  +-+-+
+  |      |
++-+-+  +-+-+
+| 1 |  | 3 |
++-+-+  +-+-+
+  |      |
+  +------+
+",
+
+// Algorithm #2:
+"
+         +---+
+         | 6 |
+         +-+-+
+           |
+         +-+-+
+         | 5 |
+         +-+-+
++---+      |
+| +-+-+  +-+-+
+| | 2 |  | 4 |
+| +-+-+  +-+-+
++---|      |
+  +-+-+  +-+-+
+  | 1 |  | 3 |
+  +-+-+  +-+-+
+    |      |
+    +------+
+",
+
+// Algorithm #3:
+"
+         +---+
++---+  +-+-+ |
+| 3 |  | 6 | |
++-+-+  +-+-+ |
+  |      +---+
++-+-+  +-+-+
+| 2 |  | 5 |
++-+-+  +-+-+
+  |      |
++-+-+  +-+-+
+| 1 |  | 4 |
++-+-+  +-+-+
+  |      |
+  +------+
+",
+
+// Algorithm #4:
+"
+         +---+
++---+  +-+-+ |
+| 3 |  | 6 | |
++-+-+  +-+-+ |
+  |      |   |
++-+-+  +-+-+ |
+| 2 |  | 5 | |
++-+-+  +-+-+ |
+  |      |   |
++-+-+  +-+-+ |
+| 1 |  | 4 | |
++-+-+  +-+-+ |
+  |      +---+
+  +------+
+",
+
+// Algorithm #5:
+"
+                +---+
++---+  +---+  +-+-+ |
+| 2 |  | 4 |  | 6 | |
++-+-+  +-+-+  +-+-+ |
+  |      |      +---+
++-+-+  +-+-+  +-+-+
+| 1 |  | 3 |  | 5 |
++-+-+  +-+-+  +-+-+
+  |      |      |
+  +------+------+
+",
+
+// Algorithm #6:
+"
+                +---+
++---+  +---+  +-+-+ |
+| 2 |  | 4 |  | 6 | |
++-+-+  +-+-+  +-+-+ |
+  |      |      |   |
++-+-+  +-+-+  +-+-+ |
+| 1 |  | 3 |  | 5 | |
++-+-+  +-+-+  +-+-+ |
+  |      |      +---+
+  +------+------+
+",
+
+// Algorithm #7:
+"
+              +---+
+            +-+-+ |
+            | 6 | |
+            +-+-+ |
+              +---+
++---+ +---+ +-+-+
+| 2 | | 4 | | 5 |
++-+-+ +-+-+ +---+
+  |     |  /
++-+-+ +-+-+
+| 1 | | 3 |
++-+-+ +-+-+
+  |     |
+  +-----+
+",
+
+// Algorithm #8:
+"
+              +---+
+              | 6 |
+              +-+-+
+      +---+     |
++---+ | +-+-+ +-+-+
+| 2 | | | 4 | | 5 |
++-+-+ | +-+-+ +---+
+  |   +---+  /
++-+-+   +-+-+
+| 1 |   | 3 |
++-+-+   +-+-+
+  |       |
+  +-------+
+",
+
+// Algorithm #9:
+"
+              +---+
+              | 6 |
+              +-+-+
++---+           |
+| +-+-+ +-+-+ +-+-+
+| | 2 | | 4 | | 5 |
+| +-+-+ +-+-+ +-+-+
++---+     |  /
+  +-+-+ +-+-+
+  | 1 | | 3 |
+  +-+-+ +-+-+
+    |     |
+    +-----+
+",
+
+// Algorithm #10:
+r"
+              +---+
+            +-+-+ |
+            | 3 | |
+            +-+-+ |
+              +---+
++---+ +---+ +-+-+
+| 5 | | 6 | | 2 |
++---+ +-+-+ +-+-+
+     \  |     |
+      +-+-+ +-+-+
+      | 4 | | 1 |
+      +-+-+ +-+-+
+        |     |
+        +-----+
+",
+
+// Algorithm #11:
+r"
+            +-+-+
+            | 3 |
+            +-+-+
+        +--+  |
++---+ +-+-+|+-+-+
+| 5 | | 6 ||| 2 |
++---+ +-+-+|+-+-+
+     \  +--+  |
+      +-+-+ +-+-+
+      | 4 | | 1 |
+      +-+-+ +-+-+
+        |     |
+        +-----+
+",
+
+// Algorithm #12:
+r"
+                    +---+
++---+ +---+ +---+ +-+-+ |
+| 4 | | 5 | | 6 | | 2 | |
++---+ +-+-+ +---+ +-+-+ |
+     \  |  /        +---+
+      +-+-+       +-+-+
+      | 3 |       | 1 |
+      +-+-+       +-+-+
+        +-----------+
+",
+
+// Algorithm #13:
+r"
+              +--+
++---+ +---+ +-+-+|+-+-+
+| 4 | | 5 | | 6 ||| 2 |
++---+ +-+-+ +-+-+|+-+-+
+     \  |  /  +--+  |
+      +-+-+       +-+-+
+      | 3 |       | 1 |
+      +-+-+       +-+-+
+        +-----------+
+",
+
+// Algorithm #14:
+r"
+        +---+
++---+ +-+-+ |
+| 5 | | 6 | |
++---+ +-+-+ |
+     \  +---+
++-+-+ +-+-+
+| 2 | | 4 |
++-+-+ +-+-+
+  |     |
++-+-+ +-+-+
+| 1 | | 3 |
++---+ +---+
+",
+
+// Algorithm #15:
+r"
+  +---+ +-+-+
+  | 5 | | 6 |
+  +---+ +-+-+
++---+  \  |
+| +-+-+ +-+-+
+| | 2 | | 4 |
+| +-+-+ +-+-+
++---+     |
+  +-+-+ +-+-+
+  | 1 | | 3 |
+  +-+-+ +-+-+
+    |     |
+    +-----+
+",
+
+// Algorithm #16:
+r"
+              +---+
+      +---+ +-+-+ |
+      | 4 | | 6 | |
+      +-+-+ +-+-+ |
+        |     +---+
++---+ +-+-+ +-+-+
+| 2 | | 3 | | 5 |
++---+ +-+-+ +---+
+     \  |  /
+      +-+-+
+      | 1 |
+      +---+
+",
+
+// Algorithm #17:
+r"
+      +---+ +-+-+
+      | 4 | | 6 |
+      +-+-+ +-+-+
+  +--+  |     |
++-+-+|+-+-+ +-+-+
+| 2 ||| 3 | | 5 |
++---+|+-+-+ +---+
+     \  |  /
+      +-+-+
+      | 1 |
+      +---+
+",
+
+// Algorithm #18:
+r"
+                 +--+--+
+                 |  6  |
+                 +--+--+
+                    |
+                 +--+--+
+                 |  5  |
+                 +--+--+
+           +----+   |
++--+--+ +--+--+ |+--+--+
+|  2  | |  3  | ||  4  |
++-----+ +--+--+ |+-----+
+       \   |---//
+        +--+---+
+        |  1   |
+        +------+
+",
+
+// Algorithm #19:
+r"
++---+
+| 3 |
++-+-+
+  |     +---+
++-+-+ +-+-+ |
+| 2 | | 6 | |
++-+-+ +-+-+ |
+  |     |  \|
++-+-+ +-+-+ +---+
+| 1 | | 4 | | 5 |
++-+-+ +-+-+ +-+-+
+  |     |     |
+  +-----+-----+
+",
+
+// Algorithm #20:
+r"
+  +---+
++-+-+ |     +---+ +---+
+| 3 | |     | 5 | | 6 |
++-+-+ |     +---+ +-+-+
+  |  \|          \  |
++-+-+ +-+-+       +-+-+
+| 1 | | 2 |       | 4 |
++-+-+ +-+-+       +-+-+
+  |     |           |
+  +-----+-----------+
+",
+
+// Algorithm #21:
+r"
+  +---+
++-+-+ |     +---+
+| 3 | |     | 6 |
++-+-+ |     +-+-+
+  |  \|       |  \
++-+-+ +---+ +-+-+ +---+
+| 1 | | 2 | | 4 | | 5 |
++-+-+ +-+-+ +-+-+ +-+-+
+  |     |     |     |
+  +-----+-----+-----+
+",
+
+// Algorithm #22:
+r"
+              +---+
++-+-+       +-+-+ |
+| 2 |       | 6 | |
++-+-+       +-+-+ |
+  |        /  |  \|
++-+-+ +---+ +-+-+ +---+
+| 1 | | 3 | | 4 | | 5 |
++-+-+ +-+-+ +-+-+ +-+-+
+  |     |     |     |
+  +-----+-----+-----+
+",
+
+// Algorithm #23:
+r"
+              +---+
+      +-+-+ +-+-+ |
+      | 3 | | 6 | |
+      +-+-+ +-+-+ |
+        |     |  \|
++---+ +-+-+ +-+-+ +---+
+| 1 | | 2 | | 4 | | 5 |
++-+-+ +-+-+ +-+-+ +-+-+
+  |     |     |     |
+  +-----+-----+-----+
+",
+
+// Algorithm #24:
+r"
+                    +---+
+                  +-+-+ |
+                  | 6 | |
+                  +-+-+ |
+                 /  |  \|
++---+ +---+ +---+ +-+-+ +-+-+
+| 1 | | 2 | | 3 | | 4 | | 5 |
++-+-+ +-+-+ +-+-+ +-+-+ +-+-+
+  |     |     |     |     |
+  +-----+-----+-----+-----+
+",
+
+// Algorithm #25:
+r"
+                    +---+
+                  +-+-+ |
+                  | 6 | |
+                  +-+-+ |
+                    |  \|
++---+ +---+ +---+ +-+-+ +---+
+| 1 | | 2 | | 3 | | 4 | | 5 |
++-+-+ +-+-+ +-+-+ +-+-+ +-+-+
+  |     |     |     |     |
+  +-----+-----+-----+-----+
+",
+
+// Algorithm #26:
+r"
+                       +---+
+       +-+-+   +---+ +-+-+ |
+       | 3 |   | 5 | | 6 | |
+       +-+-+   +---+ +-+-+ |
+         |          \  +---+
++---+  +-+-+         +-+-+
+| 1 |  | 2 |         | 4 |
++-+-+  +-+-+         +-+-+
+  |      |             |
+  +------+------+------+
+",
+
+// Algorithm #27:
+r"
+         +---+
+       +-+-+ | +---+ +---+
+       | 3 | | | 5 | | 6 |
+       +-+-+ | +---+ +-+-+
+         +---+      \  |
++---+  +-+-+         +-+-+
+| 1 |  | 2 |         | 4 |
++-+-+  +-+-+         +-+-+
+  |      |             |
+  +------+------+------+
+",
+
+// Algorithm #28:
+"
+       +---+
+       | 5 +-+
+       +-+-+ |
+         |---+
++---+  +-+-+
+| 2 |  | 4 |
++-+-+  +-+-+
+  |      |
++-+-+  +-+-+  +---+
+| 1 |  | 3 |  | 6 |
++-+-+  +-+-+  +-+-+
+  |      |      |
+  +------+------+
+",
+
+// Algorithm #29:
+"
+                       +---+
+              +-+-+  +-+-+ |
+              | 4 |  | 6 | |
+              +-+-+  +-+-+ |
+                |      |---+
++---+  +---+  +-+-+  +-+-+
+| 1 |  | 2 |  | 3 |  | 5 |
++-+-+  +-+-+  +-+-+  +-+-+
+  |      |      |      |
+  +------+------+------+
+",
+
+// Algorithm #30:
+"
+                +---+
+              +-+-+ |
+              | 5 | |
+              +-+-+ |
+                |---+
+              +-+-+
+              | 4 |
+              +-+-+
+                |
++---+  +---+  +-+-+  +---+
+| 1 |  | 2 |  | 3 |  | 6 |
++-+-+  +-+-+  +-+-+  +-+-+
+  |      |      |      |
+  +------+------+------+
+",
+
+// Algorithm #31:
+"
+                            +---+
+                            | 6 +-+
+                            +-+-+ |
+                              |---+
++---+  +---+  +---+  +---+  +-+-+
+| 1 |  | 2 |  | 3 |  | 4 |  | 5 |
++-+-+  +-+-+  +-+-+  +-+-+  +-+-+
+  |      |      |      |      |
+  +------+------+------+------+
+",
+
+// Algorithm #32:
+"
+                                     +---+
++---+  +---+  +---+  +---+  +---+  +-+-+ |
+| 1 |  | 2 |  | 3 |  | 4 |  | 5 |  | 6 | |
++-+-+  +-+-+  +-+-+  +-+-+  +-+-+  +-+-+ |
+  |      |      |      |      |      |---+
+  +------+------+------+------+------+
+",
+];

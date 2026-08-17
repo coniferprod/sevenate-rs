@@ -1,13 +1,15 @@
 use std::fmt;
+
 use bit::BitIndex;
 use log::warn;
-
-use crate::{
+use syxpack::{
     ParseError,
-    Ranged
+    Ranged,
+    Encoding,
+    SystemExclusiveData,
 };
+
 use crate::dx7::Level;
-use crate::dx7::sysex::SystemExclusiveData;
 
 /// LFO waveform.
 #[derive(Debug, Copy, Clone)]
@@ -122,14 +124,14 @@ impl SystemExclusiveData for Lfo {
 
     fn to_bytes(&self) -> Vec<u8> {
         vec![
-            self.speed.as_byte(),
-            self.delay.as_byte(),
-            self.pmd.as_byte(),
-            self.amd.as_byte(),
+            self.speed.encode(),
+            self.delay.encode(),
+            self.pmd.encode(),
+            self.amd.encode(),
             if self.sync { 1 } else { 0 },
             self.waveform as u8,
         ]
     }
 
-    const DATA_SIZE: usize = 7;
+    fn data_size() -> usize { 7 }
 }

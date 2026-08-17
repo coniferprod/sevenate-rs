@@ -4,46 +4,13 @@ use std::convert::{
 };
 
 use std::fmt;
-use rand::Rng;
-
-use crate::dx7::{
+use syxpack::{
+    Ranged,
     ParseError,
-    Ranged
+    MidiChannel,
+    Encoding,
+    SystemExclusiveData,
 };
-
-/// MIDI channel (1...16)
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct MIDIChannel(i32);
-crate::ranged_impl!(MIDIChannel, 1, 16, 1);
-
-impl MIDIChannel {
-    pub fn as_byte(&self) -> u8 {
-        (self.0 - 1) as u8  // adjust to 0...15 for SysEx
-    }
-}
-
-// NOTE: Implementing TryFrom means that TryInto is implemented as well.
-
-impl TryFrom<u8> for MIDIChannel {
-    type Error = &'static str;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let v: i32 = (value + 1).into(); // make into 1...16
-        if MIDIChannel::contains(v) {
-            Ok(MIDIChannel::new(v))
-        }
-        else {
-            Err("Bad MIDI channel value")
-        }
-    }
-}
-
-/// Parsing and generating MIDI System Exclusive data.
-pub trait SystemExclusiveData: Sized {
-    fn parse(data: &[u8]) -> Result<Self, ParseError>;
-    fn to_bytes(&self) -> Vec<u8>;
-    const DATA_SIZE: usize;
-}
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -83,7 +50,7 @@ impl From<Format> for u8 {
 
 pub struct Header {
     pub sub_status: u8,  // 0=voice/cartridge, 1=parameter
-    pub channel: MIDIChannel,
+    pub channel: MidiChannel,
     pub format: Format,
     pub byte_count: u16,  // 14-bit number distributed evenly over two bytes
     // voice=155 (00000010011011 = 0x009B, appears as "01 1B")
@@ -104,14 +71,16 @@ impl SystemExclusiveData for Header {
         //let byte_count_msb = data[2];
         //let byte_count_lsb = data[3];
         let channel = ((data[0] & 0b00001111) + 1) as i32;
-        if !MIDIChannel::contains(channel) {
-            return Err(ParseError::InvalidData(1)) // offset of value
+        if !MidiChannel::contains(channel) {
+            return Err(ParseError::InvalidData(
+                1, // offset of value
+                format!("Invalid MIDI channel value (raw: {:02X})", data[0])));
         }
         let format = Format::try_from(data[1]).expect("format should be valid");
 
         Ok(Self {
             sub_status: (data[0] >> 4) & 0b00000111,
-            channel: MIDIChannel::new(channel),
+            channel: MidiChannel::new(channel),
             format,
             byte_count: match format {
                 Format::Voice => crate::dx7::voice::VOICE_SIZE as u16,
@@ -123,7 +92,7 @@ impl SystemExclusiveData for Header {
     fn to_bytes(&self) -> Vec<u8> {
         let mut result = Vec::<u8>::new();
 
-        let b0: u8 = self.channel.as_byte() | (self.sub_status << 4);
+        let b0: u8 = self.channel.encode() | (self.sub_status << 4);
         result.push(b0);
 
         result.push(self.format.into());
@@ -142,7 +111,7 @@ impl SystemExclusiveData for Header {
         result
     }
 
-    const DATA_SIZE: usize = 4;
+    fn data_size() -> usize { 4 }
 }
 
 pub fn checksum(data: &[u8]) -> u8 {
